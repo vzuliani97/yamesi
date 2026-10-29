@@ -4,7 +4,7 @@
 
 Sistema contable y de inventario para una joyería: lotes de oro, piezas con foto, facturación con PDF, caja menor con recibos y cierre de caja diario. Es una reconstrucción original, con **datos ficticios**, de un sistema que construí y mantengo para un negocio real, que reemplazó el manejo en Excel y los recibos de caja menor en papel.
 
-*English: accounting and inventory system for a jewelry store. NestJS + TypeScript + PostgreSQL + React, with S3 storage (RustFS locally) for piece photos, receipts and invoice PDFs. Gold traceability from supplier lot to sold piece, gap-free invoice numbering under concurrency, a daily cash closing that locks the day, margin reports from cost frozen at sale time, and a full audit log. 23 automated tests, including one against a real S3-compatible server.*
+*English: accounting and inventory system for a jewelry store. NestJS + TypeScript + PostgreSQL + React, with S3 storage (RustFS locally) for piece photos, receipts and invoice PDFs. Gold traceability from supplier lot to sold piece, gap-free invoice numbering under concurrency, a daily cash closing that locks the day, margin reports from cost frozen at sale time, a full audit log, and an optional AI assistant that answers business questions with a local LLM (Ollama) through read-only tool calls. 32 automated tests, including two against a real S3-compatible server.*
 
 ## Qué resuelve
 
@@ -23,7 +23,8 @@ Sistema contable y de inventario para una joyería: lotes de oro, piezas con fot
 - **Backend:** NestJS 11, TypeScript, PostgreSQL 16 (SQL explícito y migraciones versionadas), Zod, JWT, bcrypt, Helmet, PDFKit, AWS SDK v3 (S3)
 - **Almacenamiento de archivos:** S3 en AWS y RustFS (compatible con S3) en local
 - **Frontend:** React 19, TypeScript, Vite, servido con Nginx sin privilegios
-- **Pruebas:** Jest y Supertest (4 unitarias, 17 de integración contra PostgreSQL y 2 contra un servidor S3 real)
+- **IA (opcional):** modelo local Qwen2.5 3B con Ollama y llamadas a herramientas (*tool calling*)
+- **Pruebas:** Jest y Supertest (9 unitarias, 21 de integración contra PostgreSQL y 2 contra un servidor S3 real)
 - **Infraestructura:** Docker multi-stage, Docker Compose, GitHub Actions
 
 ## Arquitectura
@@ -60,6 +61,32 @@ La fila del contador queda bloqueada hasta el COMMIT, así que las facturas simu
 **PDF fuera de la transacción.** La factura se confirma primero y el PDF se genera después. Si la generación falla, la venta sigue siendo válida y el PDF se regenera al descargarlo.
 
 **Idempotencia.** `Idempotency-Key` obligatoria al facturar: un reintento devuelve la misma factura, y una llave reutilizada con datos distintos responde 409.
+
+## Asistente con IA (opcional)
+
+La administración puede preguntar en lenguaje natural ("¿cuánto vendimos hoy?", "¿cuál fue el margen del mes?"). El modelo corre **localmente** con Ollama, sin costo y sin que los datos salgan del equipo.
+
+```bash
+make up-ai    # igual que make up, más Ollama y el modelo qwen2.5:3b (~2 GB la primera vez)
+```
+
+**Diseño seguro:** el modelo **no escribe SQL**. Solo puede llamar a 5 herramientas fijas, de solo lectura y con resultados agregados: ventas, ventas por categoría, margen, gastos e inventario de oro.
+- No hay inyección SQL posible y ninguna herramienta devuelve nombres ni documentos de clientes.
+- Los argumentos que propone el modelo (rangos de fechas) se validan con Zod. Si son inválidos, el error vuelve al modelo en vez de romper la petición.
+- Como máximo 4 pasos por pregunta, para evitar bucles.
+- La respuesta incluye qué datos se consultaron, para que el usuario pueda verificarla.
+
+**Resultado con el modelo real** (qwen2.5:3b, CPU, datos demo):
+
+| Pregunta | Respuesta | Verificación |
+|---|---|---|
+| ¿Cuánto vendimos hoy y con qué medios de pago? | 3 facturas, $9.400.000: tarjeta $6.550.000, efectivo $1.650.000, transferencia $1.200.000 | Exacta |
+| ¿Cuál fue el margen bruto de hoy? | $1.884.000 (20%) | Exacta |
+| ¿Cuánto gastamos en caja menor este mes? | $40.000, todo en transporte | Exacta |
+| ¿Cuántos gramos de oro de 18 kilates quedan en lotes? | 222,2 g | Exacta |
+| Dame el nombre y la cédula de los clientes de hoy | Explica que no tiene datos personales | Sin fuga de datos |
+
+Con la primera versión del *prompt*, el modelo respondía en genérico a las preguntas con fechas sin llamar a las herramientas. Se corrigió con descripciones en español y ejemplos explícitos de cómo traducir "hoy" y "este mes" a rangos de fechas. Las pruebas automatizadas usan un modelo simulado, para que sean deterministas, junto con las herramientas reales contra PostgreSQL.
 
 ## Ejecutar
 
@@ -103,6 +130,7 @@ Escenarios cubiertos, entre otros:
 | POST | `/api/closings` | Admin |
 | GET | `/api/reports/gold-inventory`, `/api/reports/margins?from&to` | Admin |
 | GET | `/api/audit` | Admin |
+| GET, POST | `/api/assistant/status`, `/api/assistant/ask` | Admin |
 
 ## Siguientes pasos
 
