@@ -281,3 +281,10 @@ td {
 .total {
   margin: 0;
 }
+
+.answer {
+  border-left: 3px solid var(--primary);
+  padding: 0.25rem 0.75rem;
+  background: var(--bg);
+  border-radius: 4px;
+}
