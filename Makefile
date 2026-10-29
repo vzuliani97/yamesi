@@ -1,10 +1,16 @@
-.PHONY: up down reset logs test test-db test-db-stop
+.PHONY: up up-ai down reset logs test test-db test-db-stop
 
 up:
 	docker compose up --build
 
+## Same as up, plus the AI assistant with a local model (first run downloads ~2 GB)
+up-ai:
+	docker compose --profile ai up -d ollama
+	docker compose exec ollama ollama pull $${OLLAMA_MODEL:-qwen2.5:3b}
+	ASSISTANT_ENABLED=true docker compose --profile ai up --build
+
 down:
-	docker compose down
+	docker compose --profile ai down
 
 reset:
 	docker compose down -v
