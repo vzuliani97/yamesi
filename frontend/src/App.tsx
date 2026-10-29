@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { User } from './api';
+import { AssistantPage } from './pages/Assistant';
 import { ClosingPage } from './pages/Closing';
 import { InventoryPage } from './pages/Inventory';
 import { LoginPage } from './pages/Login';
@@ -26,6 +27,7 @@ const TABS = [
   { id: 'petty-cash', label: 'Caja menor', page: PettyCashPage, adminOnly: false },
   { id: 'closing', label: 'Cierre de caja', page: ClosingPage, adminOnly: false },
   { id: 'reports', label: 'Reportes', page: ReportsPage, adminOnly: true },
+  { id: 'assistant', label: 'Asistente', page: AssistantPage, adminOnly: true },
 ] as const;
 
 function loadSession(): Session | null {

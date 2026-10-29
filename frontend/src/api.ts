@@ -122,6 +122,7 @@ const MESSAGES: Record<string, string> = {
   INSUFFICIENT_GOLD: 'El lote no tiene suficiente oro.',
   INVALID_IMAGE: 'La imagen debe ser JPEG, PNG o WebP.',
   PAYLOAD_TOO_LARGE: 'El archivo supera los 2 MB.',
+  ASSISTANT_UNAVAILABLE: 'El modelo de IA no está disponible en este momento.',
   UNAUTHORIZED: 'Tu sesión expiró. Vuelve a ingresar.',
 };
 
