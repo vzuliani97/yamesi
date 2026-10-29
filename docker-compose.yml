@@ -1,0 +1,112 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: yamesi
+      POSTGRES_USER: yamesi
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yamesi -d yamesi"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # S3-compatible object storage for photos, receipts and invoice PDFs. On AWS this is S3 itself.
+  storage:
+    image: rustfs/rustfs:1.0.4
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:?Set S3_ACCESS_KEY in .env}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:?Set S3_SECRET_KEY in .env}
+    ports:
+      # Exposed so the browser can load presigned image URLs.
+      - "9002:9000"
+    volumes:
+      - storage_data:/data
+
+  backend:
+    build:
+      context: ./backend
+      target: production
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgres://yamesi:${POSTGRES_PASSWORD}@postgres:5432/yamesi
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      CORS_ORIGIN: http://localhost:8083
+      TRUST_PROXY: 1
+      BUSINESS_TIMEZONE: America/Bogota
+      STORAGE_DRIVER: s3
+      S3_ENDPOINT: http://storage:9000
+      S3_PUBLIC_ENDPOINT: http://localhost:9002
+      S3_BUCKET: yamesi
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      SEED_DEMO_DATA: "true"
+      DEMO_PASSWORD: ${DEMO_PASSWORD:?Set DEMO_PASSWORD in .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      storage:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "8083:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  # Test profile: disposable database and object store, so tests never touch demo data.
+  postgres-test:
+    image: postgres:16-alpine
+    profiles: [test]
+    environment:
+      POSTGRES_DB: yamesi_test
+      POSTGRES_USER: yamesi
+      POSTGRES_PASSWORD: yamesi_test
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yamesi -d yamesi_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  storage-test:
+    image: rustfs/rustfs:1.0.4
+    profiles: [test]
+    environment:
+      RUSTFS_ACCESS_KEY: yamesitest
+      RUSTFS_SECRET_KEY: yamesitestsecret
+
+  backend-test:
+    build:
+      context: ./backend
+      target: test
+    profiles: [test]
+    environment:
+      DATABASE_URL: postgres://yamesi:yamesi_test@postgres-test:5432/yamesi_test
+      JWT_SECRET: e2e-test-secret-that-is-at-least-32-chars
+      STORAGE_DRIVER: memory
+      # Enables the integration test of the S3 adapter against a real object store.
+      S3_TEST_ENDPOINT: http://storage-test:9000
+      S3_TEST_ACCESS_KEY: yamesitest
+      S3_TEST_SECRET_KEY: yamesitestsecret
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      storage-test:
+        condition: service_started
+
+volumes:
+  postgres_data:
+  storage_data:
