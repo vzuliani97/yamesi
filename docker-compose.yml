@@ -45,6 +45,10 @@ services:
       S3_SECRET_KEY: ${S3_SECRET_KEY}
       SEED_DEMO_DATA: "true"
       DEMO_PASSWORD: ${DEMO_PASSWORD:?Set DEMO_PASSWORD in .env}
+      # AI assistant: start with `make up-ai`, which also runs the local model.
+      ASSISTANT_ENABLED: ${ASSISTANT_ENABLED:-false}
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b}
     depends_on:
       postgres:
         condition: service_healthy
@@ -64,6 +68,13 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+
+  # Optional local language model for the assistant (profile "ai"). Runs on CPU; no data leaves the machine.
+  ollama:
+    image: ollama/ollama:0.40.13
+    profiles: [ai]
+    volumes:
+      - ollama_models:/root/.ollama
 
   # Test profile: disposable database and object store, so tests never touch demo data.
   postgres-test:
@@ -110,3 +121,4 @@ services:
 volumes:
   postgres_data:
   storage_data:
+  ollama_models:
