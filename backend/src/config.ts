@@ -27,6 +27,11 @@ const schema = z.object({
   // Omit on AWS to use the IAM role of the pod or instance.
   S3_ACCESS_KEY: z.string().optional(),
   S3_SECRET_KEY: z.string().optional(),
+  // Optional AI assistant backed by a local model (Ollama). Off unless explicitly enabled.
+  ASSISTANT_ENABLED: booleanFlag,
+  OLLAMA_URL: z.url().default('http://localhost:11434'),
+  OLLAMA_MODEL: z.string().min(1).default('qwen2.5:3b'),
+  ASSISTANT_TIMEOUT_MS: z.coerce.number().int().positive().default(120000),
   SEED_DEMO_DATA: booleanFlag,
   DEMO_PASSWORD: z.string().min(8).default('yamesi-demo'),
 });

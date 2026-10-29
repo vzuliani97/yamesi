@@ -4,3 +4,4 @@ process.env.DATABASE_URL ??= 'postgres://yamesi:yamesi_test@localhost:55433/yame
 process.env.JWT_SECRET ??= 'e2e-test-secret-that-is-at-least-32-chars';
 process.env.STORAGE_DRIVER ??= 'memory';
 process.env.BUSINESS_TIMEZONE ??= 'America/Bogota';
+process.env.ASSISTANT_ENABLED ??= 'true';
