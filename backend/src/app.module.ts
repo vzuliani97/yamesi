@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AssistantModule } from './assistant/assistant.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { ClosingsModule } from './closings/closings.module';
@@ -23,6 +24,7 @@ import { StorageModule } from './storage/storage.module';
     ExpensesModule,
     ClosingsModule,
     ReportsModule,
+    AssistantModule,
   ],
   controllers: [HealthController],
 })

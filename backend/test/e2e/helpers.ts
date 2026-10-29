@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import { Pool } from 'pg';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
+import { LLM_CLIENT, LlmClient } from '../../src/assistant/llm';
 import { APP_CONFIG, AppConfig } from '../../src/config';
 import { DatabaseService } from '../../src/database/database.service';
 import { runMigrations } from '../../src/database/migrate';
@@ -25,8 +26,12 @@ export interface TestContext {
   http: () => ReturnType<typeof request>;
 }
 
-export async function createTestApp(): Promise<TestContext> {
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+export async function createTestApp(options: { llm?: LlmClient } = {}): Promise<TestContext> {
+  let builder = Test.createTestingModule({ imports: [AppModule] });
+  if (options.llm) {
+    builder = builder.overrideProvider(LLM_CLIENT).useValue(options.llm);
+  }
+  const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>({ logger: false });
   configureApp(app, app.get<AppConfig>(APP_CONFIG));
   await app.listen(0, '127.0.0.1');
