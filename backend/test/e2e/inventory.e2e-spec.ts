@@ -1,0 +1,111 @@
+import { createLot, createPiece, createTestApp, createUser, login, resetDatabase, TestContext, TINY_PNG } from './helpers';
+
+describe('Gold lots and pieces', () => {
+  let ctx: TestContext;
+  let adminId: string;
+  let adminToken: string;
+  let sellerToken: string;
+
+  const createPieceRequest = (fields: Record<string, string | number>, image?: { body: Buffer; type: string }) => {
+    const req = ctx.http().post('/api/pieces').set('Authorization', `Bearer ${adminToken}`);
+    for (const [name, value] of Object.entries(fields)) {
+      req.field(name, String(value));
+    }
+    if (image) {
+      req.attach('image', image.body, { filename: 'foto.png', contentType: image.type });
+    }
+    return req;
+  };
+
+  const remainingMg = async (lotId: number) =>
+    (await ctx.pool.query('SELECT remaining_mg FROM gold_lots WHERE id = $1', [lotId])).rows[0].remaining_mg;
+
+  beforeAll(async () => {
+    ctx = await createTestApp();
+  });
+
+  afterAll(async () => {
+    await ctx.app.close();
+  });
+
+  beforeEach(async () => {
+    await resetDatabase(ctx.pool);
+    adminId = await createUser(ctx.pool, 'admin@test.local', 'ADMIN');
+    await createUser(ctx.pool, 'vendedor@test.local', 'SELLER');
+    adminToken = await login(ctx, 'admin@test.local');
+    sellerToken = await login(ctx, 'vendedor@test.local');
+  });
+
+  it('registers a gold lot with milligram precision', async () => {
+    const response = await ctx
+      .http()
+      .post('/api/lots')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ karat: 18, supplier: 'Fundidora', grams: 125.375, costPerGram: 320_000, purchasedOn: '2026-10-01' });
+
+    expect(response.status).toBe(201);
+    expect(response.body).toMatchObject({ code: 'L-00001', totalGrams: 125.375, remainingGrams: 125.375 });
+  });
+
+  it('only lets admins register lots', async () => {
+    await ctx
+      .http()
+      .post('/api/lots')
+      .set('Authorization', `Bearer ${sellerToken}`)
+      .send({ karat: 18, supplier: 'Fundidora', grams: 10, costPerGram: 320_000, purchasedOn: '2026-10-01' })
+      .expect(403);
+  });
+
+  it('creates a piece with a photo and consumes gold from its lot', async () => {
+    const lotId = await createLot(ctx.pool, adminId, { grams: 50 });
+
+    const response = await createPieceRequest(
+      { name: 'Anillo', category: 'ANILLO', lotId, grams: 3.25, laborCost: 120_000, price: 1_400_000 },
+      { body: TINY_PNG, type: 'image/png' },
+    );
+
+    expect(response.status).toBe(201);
+    expect(response.body).toMatchObject({ sku: 'P-00001', grams: 3.25, status: 'IN_STOCK', karat: 18 });
+    expect(response.body.imageUrl).toMatch(/^memory:\/\/pieces\/.+\.png$/);
+    expect(await remainingMg(lotId)).toBe(50_000 - 3_250);
+  });
+
+  it('refuses to use more gold than the lot has left', async () => {
+    const lotId = await createLot(ctx.pool, adminId, { grams: 5 });
+
+    const response = await createPieceRequest({ name: 'Cadena', category: 'CADENA', lotId, grams: 8, laborCost: 0, price: 2_000_000 });
+
+    expect(response.status).toBe(409);
+    expect(response.body.error).toMatchObject({ code: 'INSUFFICIENT_GOLD', details: { remainingGrams: 5, requestedGrams: 8 } });
+    expect(await remainingMg(lotId)).toBe(5_000);
+  });
+
+  it('rejects a file that claims to be an image but is not', async () => {
+    const lotId = await createLot(ctx.pool, adminId, { grams: 50 });
+
+    const response = await createPieceRequest(
+      { name: 'Dije', category: 'DIJE', lotId, grams: 1, laborCost: 0, price: 500_000 },
+      { body: Buffer.from('<script>alert(1)</script> padding padding'), type: 'image/png' },
+    );
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('INVALID_IMAGE');
+    expect(await remainingMg(lotId)).toBe(50_000);
+  });
+
+  it('reports gold by karat across lots, stock and sales', async () => {
+    const lot18 = await createLot(ctx.pool, adminId, { karat: 18, grams: 100, costPerGram: 300_000 });
+    const lot24 = await createLot(ctx.pool, adminId, { karat: 24, grams: 20, costPerGram: 400_000 });
+    await createPiece(ctx.pool, adminId, lot18, { goldMg: 10_000 });
+    const sold = await createPiece(ctx.pool, adminId, lot24, { goldMg: 5_000 });
+    await ctx.pool.query("UPDATE pieces SET status = 'SOLD' WHERE id = $1", [sold]);
+
+    const response = await ctx.http().get('/api/reports/gold-inventory').set('Authorization', `Bearer ${adminToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual([
+      { karat: 18, gramsInLots: 90, gramsInStock: 10, gramsSold: 0, lotsValueAtCost: 27_000_000 },
+      { karat: 24, gramsInLots: 15, gramsInStock: 0, gramsSold: 5, lotsValueAtCost: 6_000_000 },
+    ]);
+  });
+});
