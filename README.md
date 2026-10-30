@@ -56,7 +56,7 @@ Photos are shown through **presigned URLs** that expire after 5 minutes, so the 
 
 Admins can ask "How much did we sell today?" or "What was this month's gross margin?". The model runs **locally** (`make up-ai`), so data never leaves the machine and there is no API cost.
 
-**Security by design:** the model never writes SQL. It can only call 5 fixed, read-only tools that return aggregates (sales, sales by category, margin, expenses, gold inventory), so SQL injection is impossible and customer names and IDs are never exposed. Tool arguments proposed by the model are validated with Zod. The loop is capped at 4 steps, and every answer lists the data it used.
+**Security by design:** the model never writes SQL. It can only call 5 fixed, read-only tools that return aggregates (sales, sales by category, margin, expenses, gold inventory), so the model cannot run arbitrary SQL and no tool returns customer names or IDs. This limits what a prompt injection could achieve. It does not make the assistant immune: a crafted question could still steer it into a misleading summary of the aggregates, which is why every answer lists the data it used. Tool arguments proposed by the model are validated with Zod. The loop is capped at 4 steps, and every answer lists the data it used.
 
 **Evaluation with the real model** (qwen2.5:3b on CPU, demo data):
 
