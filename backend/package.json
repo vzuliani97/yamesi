@@ -39,7 +39,7 @@
     "jest": "29.7.0",
     "supertest": "7.3.1",
     "ts-jest": "29.4.15",
-    "typescript": "5.9.3"
+    "typescript": "7.0.2"
   },
   "overrides": {
     "multer": "2.5.0"
