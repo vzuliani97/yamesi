@@ -1,4 +1,4 @@
-# Yamesi interview guide
+# Yamesi Core design walkthrough
 
 ## 90-second demo (works for non-technical recruiters too)
 

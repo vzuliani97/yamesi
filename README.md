@@ -1,4 +1,4 @@
-# Yamesi
+# Yamesi Core — Business Operations & Traceability System
 
 [![CI](https://github.com/vzuliani97/yamesi/actions/workflows/ci.yml/badge.svg)](https://github.com/vzuliani97/yamesi/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/vzuliani97/yamesi/actions/workflows/codeql.yml/badge.svg)](https://github.com/vzuliani97/yamesi/actions/workflows/codeql.yml)
@@ -96,6 +96,12 @@ Highlights: 8 concurrent invoices get numbers 1–8; two sales racing for one pi
 - A closed day cannot be reopened, even with authorization.
 - The assistant was evaluated on 6 questions, not a large benchmark. A 3B model can still misread unusual phrasing.
 
-## License
+## Design walkthrough
 
-MIT. All code is my own and uses synthetic data only.
+[DESIGN_WALKTHROUGH.md](DESIGN_WALKTHROUGH.md): a 90-second demo script and the hard questions this design invites, with answers that point to code and tests.
+
+## License and provenance
+
+MIT.
+
+Independent portfolio reconstruction based on engineering patterns from professional work. It uses synthetic data and contains no employer code or confidential information. AI-assisted development tools were used; the implementation was reviewed and verified through tests and CI.
