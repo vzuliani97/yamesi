@@ -21,20 +21,24 @@ auth="Authorization: Bearer $token"
 step "Pieces in stock (traceable to their gold lot)"
 curl -sS "$api/pieces?status=IN_STOCK" -H "$auth" | jq -r '.[] | "#\(.id) \(.name), \(.karat)k, lot \(.lotCode), $\(.price)"'
 
-step "Sell two pieces in cash"
+step "Sell two pieces in cash to a person (CC, email, phone, address)"
 curl -sS -X POST "$api/invoices" -H "$auth" -H 'Content-Type: application/json' -H 'Idempotency-Key: demo-sale-0001' \
-  -d '{"customerName":"Cliente de Prueba Uno","customerDocument":"CC-1000001","paymentMethod":"CASH","pieceIds":[1,3]}' |
-  jq -r '"invoice \(.data.number) total $\(.data.total) replayed=\(.meta.replayed)"'
+  -d '{"customerName":"Cliente de Prueba Uno","customerDocumentType":"CC","customerDocument":"1000001","customerEmail":"cliente.uno@example.com","customerPhone":"+57 300 000 0001","customerAddress":"Calle de prueba 1, Medellín","paymentMethod":"CASH","pieceIds":[1,3]}' |
+  jq -r '"invoice \(.data.fullNumber): base $\(.data.subtotal) + IVA $\(.data.vatTotal) = $\(.data.total), replayed=\(.meta.replayed)"'
 
 step "The client retries the same request (network timeout): same invoice, no second sale"
 curl -sS -X POST "$api/invoices" -H "$auth" -H 'Content-Type: application/json' -H 'Idempotency-Key: demo-sale-0001' \
-  -d '{"customerName":"Cliente de Prueba Uno","customerDocument":"CC-1000001","paymentMethod":"CASH","pieceIds":[1,3]}' |
-  jq -r '"invoice \(.data.number) total $\(.data.total) replayed=\(.meta.replayed)"'
+  -d '{"customerName":"Cliente de Prueba Uno","customerDocumentType":"CC","customerDocument":"1000001","customerEmail":"cliente.uno@example.com","customerPhone":"+57 300 000 0001","customerAddress":"Calle de prueba 1, Medellín","paymentMethod":"CASH","pieceIds":[1,3]}' |
+  jq -r '"invoice \(.data.fullNumber): base $\(.data.subtotal) + IVA $\(.data.vatTotal) = $\(.data.total), replayed=\(.meta.replayed)"'
 
-step "Sell one piece by card"
+step "Same Idempotency-Key with different data (another email) is a conflict, not a replay"
+curl -sS -X POST "$api/invoices" -H "$auth" -H 'Content-Type: application/json' -H 'Idempotency-Key: demo-sale-0001' \
+  -d '{"customerName":"Cliente de Prueba Uno","customerDocumentType":"CC","customerDocument":"1000001","customerEmail":"otro@example.com","customerPhone":"+57 300 000 0001","customerAddress":"Calle de prueba 1, Medellín","paymentMethod":"CASH","pieceIds":[1,3]}' -w ' HTTP %{http_code}\n'
+
+step "Sell one piece by card to a company (NIT, card approval number)"
 curl -sS -X POST "$api/invoices" -H "$auth" -H 'Content-Type: application/json' -H 'Idempotency-Key: demo-sale-0002' \
-  -d '{"customerName":"Cliente de Prueba Dos","paymentMethod":"CARD","pieceIds":[5]}' |
-  jq -r '"invoice \(.data.number) total $\(.data.total) replayed=\(.meta.replayed)"'
+  -d '{"customerName":"Comercializadora de Prueba S.A.S.","customerDocumentType":"NIT","customerDocument":"900000001-0","customerEmail":"compras@example.com","paymentMethod":"CARD","paymentReference":"APROB-123456","pieceIds":[5]}' |
+  jq -r '"invoice \(.data.fullNumber): base $\(.data.subtotal) + IVA $\(.data.vatTotal) = $\(.data.total), replayed=\(.meta.replayed)"'
 
 step "A second seller tries to sell a piece that is already sold"
 curl -sS -X POST "$api/invoices" -H "$auth" -H 'Content-Type: application/json' -H 'Idempotency-Key: demo-sale-0003' \

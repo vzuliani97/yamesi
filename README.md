@@ -7,13 +7,14 @@ Accounting and inventory system for a small jewelry store. It replaces spreadshe
 
 This is an **independent rebuild with synthetic data** of a system I built and still maintain for a real business. It contains none of that business's code or data.
 
-![Daily cash closing: cash and card sales, a petty-cash expense, expected versus counted cash, and the day locked](docs/screenshots/04-day-closing.png)
+![Point of sale: gold pieces with karat and weight, and the invoice panel with buyer data, payment, 19% VAT and total](docs/screenshots/01-sell-invoices.png)
 
 ## What it solves
 
 | Business need | How Yamesi handles it |
 |---|---|
 | Know which gold purchase every piece came from | Each piece consumes milligrams from a **lot** (supplier, karat, cost per gram). A lot can never go negative. |
+| A Colombian sales invoice with everything the law asks for | Issuer and buyer identification, DIAN numbering resolution, 19% VAT per line, payment, amount in words, gold karat, fineness and weight, a lifetime gold warranty, CUFE and QR (see below) |
 | Consecutive invoice numbers with no gaps | A counter incremented **inside** the invoice transaction. A PostgreSQL `SEQUENCE` leaves gaps on rollback. |
 | Never sell the same piece twice | Pieces locked in a fixed order, sold all-or-nothing, and `UNIQUE (piece_id)` on invoice lines |
 | Replace paper petty-cash receipts | Expenses with a category and a **photo of the receipt** stored in S3 |
@@ -28,7 +29,8 @@ This is an **independent rebuild with synthetic data** of a system I built and s
 - **Storage:** S3 on AWS; RustFS (S3-compatible) locally
 - **Frontend:** React 19 + TypeScript (Vite), unprivileged nginx
 - **AI (optional):** Qwen2.5 3B via Ollama, with tool calling
-- **Quality:** Jest + Supertest, 32 tests (9 unit, 21 integration against PostgreSQL, 2 against a real S3 server), CodeQL, Gitleaks, `npm audit`, Dependabot
+- **Invoice:** PDFKit and `qrcode`, CUFE with SHA-384 as defined by the DIAN
+- **Quality:** Jest + Supertest, 50 tests (22 unit, 26 integration against PostgreSQL, 2 against a real S3 server), CodeQL, Gitleaks, `npm audit`, Dependabot
 
 ## Architecture
 
@@ -82,15 +84,43 @@ make up-ai                # same, plus the local model (~2 GB download the first
 
 Demo users are `admin@yamesi.local` and `vendedor@yamesi.local`, password from `DEMO_PASSWORD`. The 2 lots and 6 pieces are synthetic and only load into an empty database.
 
+## Colombian sales invoice
+
+![Graphic representation of invoice FV-000001: issuer, buyer, items with karat, fineness and grams, 19% VAT, total in words, lifetime gold warranty, CUFE and QR](docs/screenshots/06-invoice-pdf.png)
+
+What the PDF carries, and where the requirement comes from:
+
+| On the invoice | Source |
+|---|---|
+| "Factura electrónica de venta", consecutive number with prefix (FV-000001) | Estatuto Tributario art. 617 a), d) |
+| Issuer: legal name, NIT with check digit, VAT responsibility, address, phone, email | Art. 617 b), i) |
+| Buyer: name, document type and number (or "consumidor final" 222222222222), email, phone, address | Art. 617 c); the email is where an electronic invoice is delivered |
+| Issue date and time with UTC offset, due date, payment form (contado) and means, card or transfer reference | Art. 617 e); Resolución DIAN 000165 de 2023 |
+| Numbering authorization: resolution number, date, prefix, range and validity | Resolución 000165 de 2023 |
+| Each piece: code, description, karat, fineness ("ley 750" for 18k), gold weight, unit value before VAT, VAT, total | Art. 617 f); prices include VAT, so each line is split into base + 19% VAT, which always add up to the price |
+| Subtotal, VAT, total, and the total in words ("TRES MILLONES DE PESOS M/CTE") | Art. 617 g) |
+| Lifetime warranty on the gold (karat and weight), plus the legal warranty of Ley 1480 de 2011 | Store policy; text configurable with `GOLD_WARRANTY_TEXT` |
+| CUFE (SHA-384) and a QR with the document data and the DIAN lookup URL, on every page | Resolución 000165 de 2023, technical annex 11.1.6 and 11.1.7 |
+
+- **CUFE verified:** the implementation reproduces the official example of the technical annex (section 11.1.6.1) byte for byte, as a unit test.
+- **Idempotent invoices:** every invoice field is part of the request hash. Repeating a request with the same `Idempotency-Key` returns the same invoice, number and CUFE. The same key with different data (another email, for instance) is a `409`.
+- **DIAN numbering range:** a number outside the authorized range is refused, without consuming the number or the pieces.
+- **Store settings:** issuer data, resolution and warranty text come from environment variables (`STORE_*`, `DIAN_*`, `INVOICE_PREFIX`, `VAT_RATE_PERCENT`). The defaults are **fictitious on purpose**: NIT `000000000-0`, resolution `00000000000000`.
+- **Not valid for tax purposes:** every PDF carries a "DEMOSTRACIÓN · SIN VALIDEZ FISCAL" watermark and is generated for the test environment. See the limitations below.
+
 ## Demo: one business day
 
 `make demo` wipes the local demo volumes, seeds the synthetic store and drives one day through the API ([`scripts/demo-scenario.sh`](scripts/demo-scenario.sh)). Output from a real run:
 
 ```text
-== Sell two pieces in cash
-invoice 1 total $3000000 replayed=false
+== Sell two pieces in cash to a person (CC, email, phone, address)
+invoice FV-000001: base $2521009 + IVA $478991 = $3000000, replayed=false
 == The client retries the same request (network timeout): same invoice, no second sale
-invoice 1 total $3000000 replayed=true
+invoice FV-000001: base $2521009 + IVA $478991 = $3000000, replayed=true
+== Same Idempotency-Key with different data (another email) is a conflict, not a replay
+{"error":{"code":"IDEMPOTENCY_KEY_REUSED","message":"Idempotency-Key was already used with different data"}} HTTP 409
+== Sell one piece by card to a company (NIT, card approval number)
+invoice FV-000002: base $1008403 + IVA $191597 = $1200000, replayed=false
 == A second seller tries to sell a piece that is already sold
 {"error":{"code":"PIECE_NOT_AVAILABLE",...,"details":{"unavailable":[1]}}} HTTP 409
 == Petty cash: transport expense with a photo of the receipt (stored in S3-compatible storage)
@@ -103,11 +133,12 @@ closed 2026-10-31: expected $2982000, difference $0
 
 | Screen | What it shows |
 |---|---|
-| [Sell](docs/screenshots/01-sell-invoices.png) | Pieces in stock with lot code, karat and weight; today's numbered invoices with PDF |
+| [Sell](docs/screenshots/01-sell-invoices.png) | Pieces with karat and weight; invoice panel with buyer, payment, VAT and total |
+| [Invoice PDF](docs/screenshots/06-invoice-pdf.png) | Graphic representation of FV-000001 |
 | [Inventory](docs/screenshots/02-inventory-gold-lots.png) | Gold lots with remaining grams and cost per gram (the traceability source) |
 | [Petty cash](docs/screenshots/03-petty-cash-receipt.png) | Expense with its receipt photo |
 | [Closing](docs/screenshots/04-day-closing.png) | Expected versus counted cash; the day is locked |
-| [Reports](docs/screenshots/05-reports-audit.png) | Gold by karat, gross margin and the audit trail of every step above |
+| [Reports](docs/screenshots/05-reports-audit.png) | Gold by karat, gross margin without VAT, and the audit trail of every step above |
 
 ## Tests
 
@@ -115,11 +146,13 @@ closed 2026-10-31: expected $2982000, difference $0
 make test                 # in containers, with a disposable PostgreSQL and RustFS
 ```
 
-Highlights: 8 concurrent invoices get numbers 1–8; two sales racing for one piece give one success and one `PIECE_NOT_AVAILABLE`; a rejected sale burns no number; cost frozen at sale time; expected cash ignores card sales; writes after closing are rejected; a fake PNG is rejected without consuming gold; against real RustFS, a presigned URL works without credentials and a forged signature gets 403; the assistant never sees customer data.
+Highlights:
+- **Colombian invoice:** the CUFE matches the official DIAN example; VAT base + VAT always equals the price; amounts in words; a stored CUFE is recomputed from its inputs; idempotency covers every invoice field; the DIAN range limit is enforced.
+- **Sales and closing:** 8 concurrent invoices get numbers 1–8; two sales racing for one piece give one success and one `PIECE_NOT_AVAILABLE`; a rejected sale burns no number; cost frozen at sale time; expected cash ignores card sales; writes after closing are rejected; a fake PNG is rejected without consuming gold; against real RustFS, a presigned URL works without credentials and a forged signature gets 403; the assistant never sees customer data.
 
 ## Known limitations
 
-- The PDF is a **demo receipt, not an electronic invoice**. Colombian e-invoicing goes through DIAN with an authorized technology provider.
+- **The invoice is never transmitted to the DIAN.** The PDF is the graphic representation. The legally valid document is a UBL 2.1 XML, digitally signed and validated by the DIAN through enabled software or an authorized technology provider, and none of that is built here. The store data and the resolution are fictitious.
 - No bucket lifecycle rule yet for orphaned uploads (a photo uploaded when the database insert then fails).
 - Single store; no multi-branch inventory or transfers.
 - A closed day cannot be reopened, even with authorization.
