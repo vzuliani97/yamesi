@@ -30,7 +30,7 @@ This is an **independent rebuild with synthetic data** of a system I built and s
 - **Frontend:** React 19 + TypeScript (Vite), unprivileged nginx
 - **AI (optional):** Qwen2.5 3B via Ollama, with tool calling
 - **Invoice:** PDFKit and `qrcode`, CUFE with SHA-384 as defined by the DIAN
-- **Quality:** Jest + Supertest, 50 tests (22 unit, 26 integration against PostgreSQL, 2 against a real S3 server), CodeQL, Gitleaks, `npm audit`, Dependabot
+- **Quality:** Jest + Supertest, 51 tests (22 unit, 27 integration against PostgreSQL, 2 against a real S3 server), CodeQL, Gitleaks, `npm audit`, Dependabot
 
 ## Architecture
 
@@ -97,7 +97,7 @@ What the PDF carries, and where the requirement comes from:
 | Buyer: name, document type and number (or "consumidor final" 222222222222), email, phone, address | Art. 617 c); the email is where an electronic invoice is delivered |
 | Issue date and time with UTC offset, due date, payment form (contado) and means, card or transfer reference | Art. 617 e); Resolución DIAN 000165 de 2023 |
 | Numbering authorization: resolution number, date, prefix, range and validity | Resolución 000165 de 2023 |
-| Each piece: code, description, karat, fineness ("ley 750" for 18k), gold weight, unit value before VAT, VAT, total | Art. 617 f); prices include VAT, so each line is split into base + 19% VAT, which always add up to the price |
+| Each piece: code, description, karat (fabrication karats only: 18k, 14k, 10k), fineness ("ley 750" for 18k), gold weight, unit value before VAT, VAT, total | Art. 617 f); prices include VAT, so each line is split into base + 19% VAT, which always add up to the price |
 | Subtotal, VAT, total, and the total in words ("TRES MILLONES DE PESOS M/CTE") | Art. 617 g) |
 | Lifetime warranty on the gold (karat and weight), plus the legal warranty of Ley 1480 de 2011 | Store policy; text configurable with `GOLD_WARRANTY_TEXT` |
 | CUFE (SHA-384) and a QR with the document data and the DIAN lookup URL, on every page | Resolución 000165 de 2023, technical annex 11.1.6 and 11.1.7 |
@@ -106,7 +106,7 @@ What the PDF carries, and where the requirement comes from:
 - **Idempotent invoices:** every invoice field is part of the request hash. Repeating a request with the same `Idempotency-Key` returns the same invoice, number and CUFE. The same key with different data (another email, for instance) is a `409`.
 - **DIAN numbering range:** a number outside the authorized range is refused, without consuming the number or the pieces.
 - **Store settings:** issuer data, resolution and warranty text come from environment variables (`STORE_*`, `DIAN_*`, `INVOICE_PREFIX`, `VAT_RATE_PERCENT`). The defaults are **fictitious on purpose**: NIT `000000000-0`, resolution `00000000000000`.
-- **Not valid for tax purposes:** every PDF carries a "DEMOSTRACIÓN · SIN VALIDEZ FISCAL" watermark and is generated for the test environment. See the limitations below.
+- **Not valid for tax purposes:** the PDF is generated for the DIAN test environment, and its footer says it was not transmitted or validated. See the limitations below.
 
 ## Demo: one business day
 

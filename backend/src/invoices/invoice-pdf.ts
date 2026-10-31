@@ -59,7 +59,7 @@ export interface InvoicePdfData {
 const PAYMENT_LABELS = { CASH: 'Efectivo', CARD: 'Tarjeta débito/crédito', TRANSFER: 'Transferencia bancaria' } as const;
 const DOCUMENT_LABELS: Record<string, string> = { CC: 'C.C.', CE: 'C.E.', NIT: 'NIT', PP: 'Pasaporte' };
 // Gold fineness ("ley") in thousandths for the usual karats.
-const FINENESS: Record<number, number> = { 24: 999, 22: 916, 18: 750, 14: 585, 10: 417 };
+const FINENESS: Record<number, number> = { 18: 750, 14: 585, 10: 417 };
 
 const COLOR = { ink: '#1c1917', muted: '#57534e', line: '#e7e5e4', band: '#1c1917', gold: '#b45309', goldSoft: '#fdf6e3', zebra: '#fafaf9' };
 const PAGE = { left: 40, right: 572, width: 532, footerTop: 650 };
@@ -105,18 +105,7 @@ export async function renderInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
       doc.fillColor('#d6d3d1').font('Helvetica').fontSize(8).text('Representación gráfica · Ambiente de pruebas', 330, 70, { width: 242, align: 'right' });
     };
 
-    const watermark = () => {
-      doc.save();
-      doc.translate(306, 470).rotate(-28);
-      doc.fillColor('#b45309').opacity(0.06).font('Helvetica-Bold');
-      doc.fontSize(60).text('DEMOSTRACIÓN', -300, -40, { width: 600, align: 'center', lineBreak: false });
-      doc.fontSize(22).text('SIN VALIDEZ FISCAL', -300, 26, { width: 600, align: 'center', lineBreak: false });
-      doc.restore();
-      doc.opacity(1);
-    };
-
     drawHeader();
-    watermark();
 
     // ---- Issuer, issue and buyer blocks ----
     const blockTop = 112;
@@ -162,8 +151,7 @@ export async function renderInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
 
     doc.fillColor(COLOR.muted).font('Helvetica').fontSize(7).text(
       `Autorización de numeración de facturación: Resolución DIAN N.º ${c.DIAN_RESOLUTION_NUMBER} del ${c.DIAN_RESOLUTION_DATE}, ` +
-        `prefijo ${c.INVOICE_PREFIX}, del ${integer.format(c.DIAN_RANGE_FROM)} al ${integer.format(c.DIAN_RANGE_TO)}, vigente hasta ${c.DIAN_RESOLUTION_VALID_UNTIL}. ` +
-        'Datos de demostración.',
+        `prefijo ${c.INVOICE_PREFIX}, del ${integer.format(c.DIAN_RANGE_FROM)} al ${integer.format(c.DIAN_RANGE_TO)}, vigente hasta ${c.DIAN_RESOLUTION_VALID_UNTIL}.`,
       PAGE.left,
       y,
       { width: PAGE.width },
@@ -193,7 +181,6 @@ export async function renderInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
       if (y + rowHeight > PAGE.footerTop - 10) {
         doc.addPage();
         drawHeader();
-        watermark();
         y = 112;
         tableHeader();
       }
@@ -222,7 +209,6 @@ export async function renderInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
     if (y + 150 > PAGE.footerTop) {
       doc.addPage();
       drawHeader();
-      watermark();
       y = 112;
     }
     y += 12;
@@ -265,9 +251,8 @@ export async function renderInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
       doc.fillColor(COLOR.muted).font('Helvetica-Bold').fontSize(7).text('CUFE', textX, top + 12);
       doc.fillColor(COLOR.ink).font('Courier').fontSize(7).text(data.cufe, textX, top + 22, { width: PAGE.width - 100 });
       doc.fillColor(COLOR.muted).font('Helvetica').fontSize(7).text(
-        'Representación gráfica de la factura electrónica de venta. Documento de DEMOSTRACIÓN con datos ficticios, ' +
-          'generado en ambiente de pruebas: no fue transmitido ni validado por la DIAN y no tiene validez fiscal. ' +
-          'El código QR contiene los datos del documento y la URL de consulta del catálogo de la DIAN.',
+        'Representación gráfica de la factura electrónica de venta. Generada en ambiente de pruebas: no ha sido transmitida ' +
+          'ni validada por la DIAN y no tiene validez fiscal. El código QR contiene los datos del documento y la URL de consulta de la DIAN.',
         textX,
         top + 46,
         { width: PAGE.width - 100 },

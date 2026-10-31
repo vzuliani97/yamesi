@@ -25,23 +25,22 @@ export async function seedDemoData(pool: Pool, config: AppConfig): Promise<void>
     );
     const adminId = users.find((user) => user.role === 'ADMIN')!.id;
 
-    const { rows: lots } = await client.query<{ id: number; karat: number }>(
+    const { rows: lots } = await client.query<{ id: number; supplier: string }>(
       `INSERT INTO gold_lots (karat, supplier, total_mg, remaining_mg, cost_per_gram, purchased_on, created_by) VALUES
          (18, 'Fundidora Andina (ficticia)', 250000, 250000, 320000, CURRENT_DATE - 20, $1),
-         (24, 'Metales del Valle (ficticia)', 100000, 100000, 430000, CURRENT_DATE - 10, $1)
-       RETURNING id, karat`,
+         (18, 'Metales del Valle (ficticia)', 100000, 100000, 335000, CURRENT_DATE - 10, $1)
+       RETURNING id, supplier`,
       [adminId],
     );
-    const lot18 = lots.find((lot) => lot.karat === 18)!.id;
-    const lot24 = lots.find((lot) => lot.karat === 24)!.id;
+    const [andina, valle] = lots.map((lot) => lot.id);
 
     const pieces: Array<[string, string, number, number, number, number]> = [
-      ['Anillo solitario', 'ANILLO', lot18, 3500, 180000, 1650000],
-      ['Cadena tejido lazo 50 cm', 'CADENA', lot18, 12000, 350000, 5200000],
-      ['Aretes argolla pequeña', 'ARETES', lot18, 2800, 150000, 1350000],
-      ['Pulsera esclava', 'PULSERA', lot18, 9500, 300000, 4150000],
-      ['Dije corazón', 'DIJE', lot24, 2000, 120000, 1200000],
-      ['Anillo de compromiso', 'ANILLO', lot24, 4200, 250000, 2600000],
+      ['Anillo solitario', 'ANILLO', andina, 3500, 180000, 1650000],
+      ['Cadena tejido lazo 50 cm', 'CADENA', andina, 12000, 350000, 5200000],
+      ['Aretes argolla pequeña', 'ARETES', andina, 2800, 150000, 1350000],
+      ['Pulsera esclava', 'PULSERA', andina, 9500, 300000, 4150000],
+      ['Dije corazón', 'DIJE', valle, 2000, 120000, 1200000],
+      ['Anillo de compromiso', 'ANILLO', valle, 4200, 250000, 2600000],
     ];
 
     for (const [name, category, lotId, goldMg, laborCost, price] of pieces) {

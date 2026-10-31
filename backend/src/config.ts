@@ -37,10 +37,10 @@ const schema = z.object({
   // Issuer data printed on every invoice (Estatuto Tributario art. 617). The defaults are fictitious on purpose:
   // this repository renders the graphic representation only and never transmits invoices to the DIAN.
   STORE_NAME: z.string().min(2).default('Joyería Yamesi'),
-  STORE_LEGAL_NAME: z.string().min(2).default('Joyería Yamesi S.A.S. (datos de demostración)'),
+  STORE_LEGAL_NAME: z.string().min(2).default('Joyería Yamesi S.A.S.'),
   STORE_NIT: z.string().regex(/^\d{5,10}-\d$/, 'NIT with check digit, e.g. 900123456-7').default('000000000-0'),
   STORE_TAX_REGIME: z.string().min(2).default('Responsable de IVA'),
-  STORE_ADDRESS: z.string().min(2).default('Dirección de demostración, Medellín, Antioquia'),
+  STORE_ADDRESS: z.string().min(2).default('Medellín, Antioquia'),
   STORE_PHONE: z.string().min(7).default('+57 604 000 0000'),
   STORE_EMAIL: z.email().default('facturacion@yamesi.local'),
   VAT_RATE_PERCENT: z.coerce.number().int().min(0).max(100).default(19),

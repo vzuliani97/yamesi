@@ -47,6 +47,18 @@ describe('Gold lots and pieces', () => {
     expect(response.body).toMatchObject({ code: 'L-00001', totalGrams: 125.375, remainingGrams: 125.375 });
   });
 
+  it('accepts only fabrication karats: a 24k (pure gold) lot is rejected', async () => {
+    const lot = (karat: number) =>
+      ctx
+        .http()
+        .post('/api/lots')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ karat, supplier: 'Fundidora', grams: 10, costPerGram: 320_000, purchasedOn: '2026-10-01' });
+
+    expect((await lot(24)).status).toBe(400);
+    expect([(await lot(18)).status, (await lot(14)).status, (await lot(10)).status]).toEqual([201, 201, 201]);
+  });
+
   it('only lets admins register lots', async () => {
     await ctx
       .http()
@@ -95,17 +107,17 @@ describe('Gold lots and pieces', () => {
 
   it('reports gold by karat across lots, stock and sales', async () => {
     const lot18 = await createLot(ctx.pool, adminId, { karat: 18, grams: 100, costPerGram: 300_000 });
-    const lot24 = await createLot(ctx.pool, adminId, { karat: 24, grams: 20, costPerGram: 400_000 });
+    const lot14 = await createLot(ctx.pool, adminId, { karat: 14, grams: 20, costPerGram: 400_000 });
     await createPiece(ctx.pool, adminId, lot18, { goldMg: 10_000 });
-    const sold = await createPiece(ctx.pool, adminId, lot24, { goldMg: 5_000 });
+    const sold = await createPiece(ctx.pool, adminId, lot14, { goldMg: 5_000 });
     await ctx.pool.query("UPDATE pieces SET status = 'SOLD' WHERE id = $1", [sold]);
 
     const response = await ctx.http().get('/api/reports/gold-inventory').set('Authorization', `Bearer ${adminToken}`);
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual([
+      { karat: 14, gramsInLots: 15, gramsInStock: 0, gramsSold: 5, lotsValueAtCost: 6_000_000 },
       { karat: 18, gramsInLots: 90, gramsInStock: 10, gramsSold: 0, lotsValueAtCost: 27_000_000 },
-      { karat: 24, gramsInLots: 15, gramsInStock: 0, gramsSold: 5, lotsValueAtCost: 6_000_000 },
     ]);
   });
 });
