@@ -7,6 +7,8 @@ Accounting and inventory system for a small jewelry store. It replaces spreadshe
 
 This is an **independent rebuild with synthetic data** of a system I built and still maintain for a real business. It contains none of that business's code or data.
 
+![Daily cash closing: cash and card sales, a petty-cash expense, expected versus counted cash, and the day locked](docs/screenshots/04-day-closing.png)
+
 ## What it solves
 
 | Business need | How Yamesi handles it |
@@ -79,6 +81,33 @@ make up-ai                # same, plus the local model (~2 GB download the first
 ```
 
 Demo users are `admin@yamesi.local` and `vendedor@yamesi.local`, password from `DEMO_PASSWORD`. The 2 lots and 6 pieces are synthetic and only load into an empty database.
+
+## Demo: one business day
+
+`make demo` wipes the local demo volumes, seeds the synthetic store and drives one day through the API ([`scripts/demo-scenario.sh`](scripts/demo-scenario.sh)). Output from a real run:
+
+```text
+== Sell two pieces in cash
+invoice 1 total $3000000 replayed=false
+== The client retries the same request (network timeout): same invoice, no second sale
+invoice 1 total $3000000 replayed=true
+== A second seller tries to sell a piece that is already sold
+{"error":{"code":"PIECE_NOT_AVAILABLE",...,"details":{"unavailable":[1]}}} HTTP 409
+== Petty cash: transport expense with a photo of the receipt (stored in S3-compatible storage)
+expense #1 $18000 receipt stored=true
+== Close the day with the counted cash
+closed 2026-10-31: expected $2982000, difference $0
+== A late sale after closing is rejected
+{"error":{"code":"DAY_CLOSED","message":"Business day 2026-10-31 is already closed"}} HTTP 409
+```
+
+| Screen | What it shows |
+|---|---|
+| [Sell](docs/screenshots/01-sell-invoices.png) | Pieces in stock with lot code, karat and weight; today's numbered invoices with PDF |
+| [Inventory](docs/screenshots/02-inventory-gold-lots.png) | Gold lots with remaining grams and cost per gram (the traceability source) |
+| [Petty cash](docs/screenshots/03-petty-cash-receipt.png) | Expense with its receipt photo |
+| [Closing](docs/screenshots/04-day-closing.png) | Expected versus counted cash; the day is locked |
+| [Reports](docs/screenshots/05-reports-audit.png) | Gold by karat, gross margin and the audit trail of every step above |
 
 ## Tests
 

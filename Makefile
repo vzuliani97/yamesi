@@ -1,4 +1,4 @@
-.PHONY: up up-ai down reset logs test test-db test-db-stop
+.PHONY: up up-ai down reset demo logs test test-db test-db-stop
 
 up:
 	docker compose up --build
@@ -15,6 +15,12 @@ down:
 reset:
 	docker compose down -v
 	docker compose up --build
+
+## Deterministic demo: wipes the local demo volumes, seeds, then runs one scripted business day (synthetic data)
+demo:
+	docker compose down -v
+	docker compose up -d --build --wait
+	./scripts/demo-scenario.sh
 
 logs:
 	docker compose logs -f backend
