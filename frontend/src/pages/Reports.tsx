@@ -86,7 +86,7 @@ export function ReportsPage({ token, onUnauthorized }: PageProps) {
                 <td>{margins.data.invoices}</td>
               </tr>
               <tr>
-                <td>Ventas</td>
+                <td>Ventas sin IVA</td>
                 <td>{formatCop(margins.data.revenue)}</td>
               </tr>
               <tr>

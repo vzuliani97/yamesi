@@ -32,14 +32,38 @@ export interface Piece {
   imageUrl: string | null;
 }
 
+export type DocumentType = 'CC' | 'CE' | 'NIT' | 'PP';
+
+export interface InvoiceItem {
+  pieceId: number;
+  sku: string;
+  name: string;
+  karat: number;
+  grams: number;
+  vatRate: number;
+  taxBase: number;
+  vat: number;
+  price: number;
+}
+
 export interface Invoice {
   id: string;
   number: number;
+  fullNumber: string;
   businessDate: string;
+  issuedAt: string;
   customerName: string;
+  customerDocumentType: DocumentType | null;
+  customerDocument: string | null;
+  customerEmail: string | null;
   paymentMethod: PaymentMethod;
+  paymentReference: string | null;
+  subtotal: number;
+  vatTotal: number;
   total: number;
+  cufe: string | null;
   seller: string;
+  items?: InvoiceItem[];
 }
 
 export interface Expense {

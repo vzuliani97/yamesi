@@ -46,7 +46,7 @@ export function LoginPage({ onSignIn }: { onSignIn: (session: Session) => void }
           />
         </label>
         {error && <p className="alert error">{error}</p>}
-        <button type="submit" disabled={busy}>
+        <button type="submit" className="btn-gold" disabled={busy}>
           {busy ? 'Ingresando…' : 'Ingresar'}
         </button>
         <p className="hint">Demo: vendedor@yamesi.local o admin@yamesi.local</p>
