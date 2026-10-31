@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import { computeCufe } from '../../src/invoices/cufe';
+import { dianDateTime } from '../../src/invoices/invoices.service';
 import {
   binaryParser,
   createLot,
@@ -130,5 +132,127 @@ describe('Invoicing', () => {
     const adminToken = await login(ctx, 'admin@test.local');
     const audit = await ctx.http().get('/api/audit').set('Authorization', `Bearer ${adminToken}`).expect(200);
     expect(audit.body[0]).toMatchObject({ action: 'INVOICE_CREATED', entity: 'invoice', actor: 'vendedor' });
+  });
+
+  describe('Colombian sales invoice', () => {
+    const colombianSale = (pieceIds: number[], key: string, overrides: Record<string, unknown> = {}) =>
+      ctx
+        .http()
+        .post('/api/invoices')
+        .set('Authorization', `Bearer ${token}`)
+        .set('Idempotency-Key', key)
+        .send({
+          customerName: 'María Fernanda Ríos',
+          customerDocumentType: 'CC',
+          customerDocument: '1020304050',
+          customerEmail: 'Maria.Rios@Example.com',
+          customerPhone: '+57 300 123 4567',
+          customerAddress: 'Calle 10 # 43-12, Medellín',
+          paymentMethod: 'CARD',
+          paymentReference: 'VOUCHER-0099',
+          pieceIds,
+          ...overrides,
+        });
+
+    it('discriminates 19% VAT per line, stores the buyer and issues a CUFE that matches the DIAN formula', async () => {
+      const ring = await createPiece(ctx.pool, adminId, lotId, { price: 1_190_000, goldMg: 3_000, laborCost: 100_000 });
+      const chain = await createPiece(ctx.pool, adminId, lotId, { price: 1_650_000, goldMg: 5_000, laborCost: 100_000 });
+
+      const response = await colombianSale([ring, chain], randomUUID());
+
+      expect(response.status).toBe(201);
+      const data = response.body.data;
+      expect(data).toMatchObject({
+        fullNumber: 'FV-000001',
+        customerDocumentType: 'CC',
+        customerDocument: '1020304050',
+        customerEmail: 'maria.rios@example.com',
+        paymentMethod: 'CARD',
+        paymentReference: 'VOUCHER-0099',
+        subtotal: 1_000_000 + 1_386_555,
+        vatTotal: 190_000 + 263_445,
+        total: 2_840_000,
+      });
+      expect(data.items).toEqual([
+        expect.objectContaining({ taxBase: 1_000_000, vat: 190_000, price: 1_190_000, vatRate: 19 }),
+        expect.objectContaining({ taxBase: 1_386_555, vat: 263_445, price: 1_650_000, vatRate: 19 }),
+      ]);
+
+      // Recompute the CUFE from what was stored: same inputs, same SHA-384, as a DIAN validator would.
+      const { rows } = await ctx.pool.query('SELECT issued_at, cufe FROM invoices WHERE id = $1', [data.id]);
+      const { date, time } = dianDateTime(rows[0].issued_at, 'America/Bogota');
+      expect(rows[0].cufe).toBe(
+        computeCufe({
+          numFac: 'FV1', fecFac: date, horFac: time, valFac: '2386555.00', valImp1: '453445.00', valImp2: '0.00',
+          valImp3: '0.00', valTot: '2840000.00', nitOfe: '000000000', numAdq: '1020304050',
+          clTec: 'clave-tecnica-de-demostracion', tipoAmbiente: '2',
+        }),
+      );
+      expect(time).toMatch(/^\d{2}:\d{2}:\d{2}-05:00$/);
+
+      const pdf = await ctx.http().get(`/api/invoices/${data.id}/pdf`).set('Authorization', `Bearer ${token}`).buffer(true).parse(binaryParser);
+      expect(pdf.status).toBe(200);
+      expect(pdf.headers['content-disposition']).toContain('factura-FV-000001.pdf');
+      expect((pdf.body as Buffer).subarray(0, 4).toString()).toBe('%PDF');
+    });
+
+    it('uses the final-consumer id 222222222222 in the CUFE when no document is given', async () => {
+      const piece = await createPiece(ctx.pool, adminId, lotId, { price: 500_000, goldMg: 1_000, laborCost: 50_000 });
+
+      const response = await colombianSale([piece], randomUUID(), {
+        customerDocumentType: undefined, customerDocument: undefined, paymentMethod: 'CASH', paymentReference: undefined,
+      });
+
+      expect(response.status).toBe(201);
+      const { rows } = await ctx.pool.query('SELECT issued_at, cufe FROM invoices WHERE id = $1', [response.body.data.id]);
+      const { date, time } = dianDateTime(rows[0].issued_at, 'America/Bogota');
+      const expected = computeCufe({
+        numFac: 'FV1', fecFac: date, horFac: time, valFac: '420168.00', valImp1: '79832.00', valImp2: '0.00', valImp3: '0.00',
+        valTot: '500000.00', nitOfe: '000000000', numAdq: '222222222222', clTec: 'clave-tecnica-de-demostracion', tipoAmbiente: '2',
+      });
+      expect(rows[0].cufe).toBe(expected);
+    });
+
+    it('is idempotent with every invoice field: a replay returns the same invoice and CUFE; changed data is rejected', async () => {
+      const piece = await createPiece(ctx.pool, adminId, lotId, { price: 1_000_000, goldMg: 2_000, laborCost: 50_000 });
+      const key = randomUUID();
+
+      const first = await colombianSale([piece], key);
+      const replay = await colombianSale([piece], key);
+      const otherEmail = await colombianSale([piece], key, { customerEmail: 'otra@example.com' });
+
+      expect(first.status).toBe(201);
+      expect(replay.status).toBe(200);
+      expect(replay.body.meta.replayed).toBe(true);
+      expect(replay.body.data).toMatchObject({ id: first.body.data.id, fullNumber: 'FV-000001', cufe: first.body.data.cufe });
+      expect(otherEmail.status).toBe(409);
+      expect(otherEmail.body.error.code).toBe('IDEMPOTENCY_KEY_REUSED');
+      const { rows } = await ctx.pool.query('SELECT count(*)::int AS n FROM invoices');
+      expect(rows[0].n).toBe(1);
+    });
+
+    it('validates buyer and payment data', async () => {
+      const piece = await createPiece(ctx.pool, adminId, lotId, { price: 1_000_000, goldMg: 2_000, laborCost: 50_000 });
+
+      const noType = await colombianSale([piece], randomUUID(), { customerDocumentType: undefined });
+      const badEmail = await colombianSale([piece], randomUUID(), { customerEmail: 'no-es-un-correo' });
+      const cashWithReference = await colombianSale([piece], randomUUID(), { paymentMethod: 'CASH' });
+
+      expect([noType.status, badEmail.status, cashWithReference.status]).toEqual([400, 400, 400]);
+    });
+
+    it('refuses to number outside the authorized DIAN range, without consuming a number or a piece', async () => {
+      const piece = await createPiece(ctx.pool, adminId, lotId, { price: 1_000_000, goldMg: 2_000, laborCost: 50_000 });
+      await ctx.pool.query('UPDATE invoice_counter SET last_number = 100000');
+
+      const response = await colombianSale([piece], randomUUID());
+
+      expect(response.status).toBe(409);
+      expect(response.body.error.code).toBe('NUMBERING_RANGE_EXHAUSTED');
+      const counter = await ctx.pool.query('SELECT last_number FROM invoice_counter');
+      const status = await ctx.pool.query('SELECT status FROM pieces WHERE id = $1', [piece]);
+      expect(counter.rows[0].last_number).toBe(100000);
+      expect(status.rows[0].status).toBe('IN_STOCK');
+    });
   });
 });

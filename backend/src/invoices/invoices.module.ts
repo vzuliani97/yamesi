@@ -12,15 +12,37 @@ import { CreateInvoiceInput, InvoicesService } from './invoices.service';
 const createInvoiceSchema = z
   .object({
     customerName: z.string().trim().min(2).max(120),
+    customerDocumentType: z.enum(['CC', 'CE', 'NIT', 'PP']).optional(),
     customerDocument: z
       .string()
       .trim()
       .regex(/^[0-9A-Za-z-]{5,20}$/)
       .optional(),
+    customerEmail: z.email().max(120).optional(),
+    customerPhone: z
+      .string()
+      .trim()
+      .regex(/^[0-9+() -]{7,20}$/)
+      .optional(),
+    customerAddress: z.string().trim().min(5).max(160).optional(),
     paymentMethod: z.enum(['CASH', 'CARD', 'TRANSFER']),
+    // Card voucher or transfer number, so the invoice can be matched with the bank statement.
+    paymentReference: z
+      .string()
+      .trim()
+      .regex(/^[0-9A-Za-z-]{4,40}$/)
+      .optional(),
     pieceIds: z.array(z.number().int().positive()).min(1).max(20),
   })
-  .strict();
+  .strict()
+  .refine((body) => !body.customerDocument || body.customerDocumentType, {
+    message: 'customerDocumentType is required when customerDocument is given',
+    path: ['customerDocumentType'],
+  })
+  .refine((body) => body.paymentMethod !== 'CASH' || !body.paymentReference, {
+    message: 'paymentReference applies to card and transfer payments only',
+    path: ['paymentReference'],
+  });
 
 const listQuerySchema = z.object({ date: z.string().regex(DATE_PATTERN).optional() });
 
@@ -56,7 +78,7 @@ export class InvoicesController {
     const { number, body } = await this.invoices.pdf(id);
     res
       .type('application/pdf')
-      .setHeader('Content-Disposition', `inline; filename="factura-${String(number).padStart(6, '0')}.pdf"`)
+      .setHeader('Content-Disposition', `inline; filename="factura-${number}.pdf"`)
       .send(body);
   }
 }

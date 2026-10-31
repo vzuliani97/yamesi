@@ -51,7 +51,7 @@ describe('AI assistant over real business data', () => {
       .post('/api/invoices')
       .set('Authorization', `Bearer ${sellerToken}`)
       .set('Idempotency-Key', randomUUID())
-      .send({ customerName: 'Cliente Confidencial', customerDocument: '1020304050', paymentMethod: 'CARD', pieceIds: [piece] })
+      .send({ customerName: 'Cliente Confidencial', customerDocumentType: 'CC', customerDocument: '1020304050', paymentMethod: 'CARD', pieceIds: [piece] })
       .expect(201);
   });
 

@@ -49,10 +49,10 @@ export class ReportsService {
     }));
   }
 
-  /** Gross margin from the cost frozen on each invoice line at the time of sale. */
+  /** Gross margin from the cost frozen on each invoice line at the time of sale. Revenue excludes VAT: it belongs to the DIAN. */
   async margins(from: string, to: string) {
     const { rows } = await this.db.query<{ invoices: string; revenue: string; cost: string }>(
-      `SELECT COUNT(DISTINCT i.id) AS invoices, COALESCE(SUM(ii.price), 0) AS revenue, COALESCE(SUM(ii.cost), 0) AS cost
+      `SELECT COUNT(DISTINCT i.id) AS invoices, COALESCE(SUM(ii.tax_base), 0) AS revenue, COALESCE(SUM(ii.cost), 0) AS cost
        FROM invoices i JOIN invoice_items ii ON ii.invoice_id = i.id
        WHERE i.business_date BETWEEN $1 AND $2`,
       [from, to],

@@ -116,6 +116,7 @@ describe('Petty cash and daily cash closing', () => {
       .get(`/api/reports/margins?from=${today()}&to=${today()}`)
       .set('Authorization', `Bearer ${adminToken}`);
 
-    expect(response.body).toMatchObject({ invoices: 1, revenue: 1_000_000, cost: 700_000, grossMargin: 300_000, marginPercent: 30 });
+    // The 1.000.000 price includes 19% VAT: revenue is the 840.336 base, not what the customer paid.
+    expect(response.body).toMatchObject({ invoices: 1, revenue: 840_336, cost: 700_000, grossMargin: 140_336, marginPercent: 16.7 });
   });
 });

@@ -34,6 +34,31 @@ const schema = z.object({
   ASSISTANT_TIMEOUT_MS: z.coerce.number().int().positive().default(120000),
   SEED_DEMO_DATA: booleanFlag,
   DEMO_PASSWORD: z.string().min(8).default('yamesi-demo'),
+  // Issuer data printed on every invoice (Estatuto Tributario art. 617). The defaults are fictitious on purpose:
+  // this repository renders the graphic representation only and never transmits invoices to the DIAN.
+  STORE_NAME: z.string().min(2).default('Joyería Yamesi'),
+  STORE_LEGAL_NAME: z.string().min(2).default('Joyería Yamesi S.A.S. (datos de demostración)'),
+  STORE_NIT: z.string().regex(/^\d{5,10}-\d$/, 'NIT with check digit, e.g. 900123456-7').default('000000000-0'),
+  STORE_TAX_REGIME: z.string().min(2).default('Responsable de IVA'),
+  STORE_ADDRESS: z.string().min(2).default('Dirección de demostración, Medellín, Antioquia'),
+  STORE_PHONE: z.string().min(7).default('+57 604 000 0000'),
+  STORE_EMAIL: z.email().default('facturacion@yamesi.local'),
+  VAT_RATE_PERCENT: z.coerce.number().int().min(0).max(100).default(19),
+  INVOICE_PREFIX: z.string().regex(/^[A-Z]{1,4}$/).default('FV'),
+  DIAN_RESOLUTION_NUMBER: z.string().regex(/^\d{1,20}$/).default('00000000000000'),
+  DIAN_RESOLUTION_DATE: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).default('2026-01-01'),
+  DIAN_RESOLUTION_VALID_UNTIL: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).default('2028-01-01'),
+  DIAN_RANGE_FROM: z.coerce.number().int().positive().default(1),
+  DIAN_RANGE_TO: z.coerce.number().int().positive().default(100000),
+  DIAN_TECHNICAL_KEY: z.string().min(8).default('clave-tecnica-de-demostracion'),
+  GOLD_WARRANTY_TEXT: z
+    .string()
+    .min(20)
+    .default(
+      'Garantizamos de por vida que el oro de cada pieza corresponde al kilataje (ley) y al peso indicados en esta ' +
+        'factura. Los defectos de fabricación tienen la garantía legal de la Ley 1480 de 2011 (Estatuto del Consumidor). ' +
+        'Conserve esta factura: es el soporte para hacer efectiva la garantía.',
+    ),
 });
 
 export type AppConfig = z.infer<typeof schema>;
