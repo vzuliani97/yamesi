@@ -10,8 +10,8 @@ import { DatabaseService } from '../database/database.service';
 
 const createLotSchema = z
   .object({
-    // Fabrication karats only: 24k (pure gold) is too soft to make jewelry.
-    karat: z.union([z.literal(10), z.literal(14), z.literal(18)]),
+    // The store works only with 18k gold (ley 750); 24k is too soft to make jewelry.
+    karat: z.literal(18),
     supplier: z.string().trim().min(2).max(120),
     grams: z
       .number()

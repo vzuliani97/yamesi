@@ -128,8 +128,6 @@ function NewLotForm({ token, onCreated, onUnauthorized }: FormProps) {
         Kilates
         <select value={form.karat} onChange={set('karat')}>
           <option value="18">18k (ley 750)</option>
-          <option value="14">14k (ley 585)</option>
-          <option value="10">10k (ley 417)</option>
         </select>
       </label>
       <label>
