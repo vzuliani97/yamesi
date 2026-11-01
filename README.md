@@ -28,7 +28,7 @@ Everything in this repository, end to end:
 - **Colombian invoice:** the PDF layout, CUFE with SHA-384 checked against the DIAN's official example, the QR, the total in words and the lifetime gold warranty.
 - **Frontend (React):** the point of sale with catalog photos, the invoice panel, the inventory portal with photo upload, petty cash with receipt photos, closing, reports and the assistant screen.
 - **AI assistant:** a local model (Ollama) limited to five read-only aggregate tools, with an evaluation of its answers.
-- **Delivery and quality:** Docker Compose for the whole stack, non-root containers, a scripted business day (`make demo`), 53 automated tests and CI with CodeQL, Gitleaks and `npm audit`.
+- **Delivery and quality:** Docker Compose for the whole stack, non-root containers, a scripted business day (`make demo`), 54 automated tests and CI with CodeQL, Gitleaks and `npm audit`.
 
 ## Processes, step by step
 
@@ -117,7 +117,7 @@ Gold by karat across lots, stock and sales; gross margin without VAT from costs 
 - **Frontend:** React 19 + TypeScript (Vite), unprivileged nginx
 - **AI (optional):** Qwen2.5 3B via Ollama, with tool calling
 - **Invoice:** PDFKit and `qrcode`, CUFE with SHA-384 as defined by the DIAN
-- **Quality:** Jest + Supertest, 53 tests (22 unit, 29 integration against PostgreSQL, 2 against RustFS, a real S3-compatible server), CodeQL, Gitleaks, `npm audit`, Dependabot
+- **Quality:** Jest + Supertest, 54 tests (22 unit, 30 integration against PostgreSQL, 2 against RustFS, a real S3-compatible server), CodeQL, Gitleaks, `npm audit`, Dependabot
 
 ## Architecture
 
@@ -140,6 +140,7 @@ Photos are shown through **presigned URLs** that expire after 5 minutes, so the 
 - **All-or-nothing sales without deadlocks.** `SELECT … ORDER BY id FOR UPDATE` always locks pieces in the same order, then they are marked sold only if all are still in stock. If one isn't, the whole invoice rolls back and the response names the unavailable pieces.
 - **The closing locks the day.** Sales and expenses take a **shared** advisory lock on their date; the closing takes an **exclusive** one, so nothing can slip in while totals are computed. Afterwards every write for that date gets `DAY_CLOSED`.
 - **Business date in Bogotá time, not UTC.** At 8 p.m. in Colombia it is already tomorrow in UTC. The date comes from `BUSINESS_TIMEZONE`.
+- **Login throttling.** After 5 failed logins for one email from one address, that pair is locked for 15 minutes (`429 TOO_MANY_ATTEMPTS`), even for the right password.
 - **Safe uploads.** The image type is detected from its magic bytes, never from the file name or `Content-Type`. Uploads are capped at 2 MB in both Multer and nginx.
 - **PDF after commit.** The invoice commits first; if the PDF fails it is regenerated on download.
 
