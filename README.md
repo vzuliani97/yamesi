@@ -11,7 +11,7 @@ This is an **independent rebuild** of a system I built and still maintain for a 
 
 ## What it is for
 
-A jewelry counter sells 18k gold pieces whose value depends on their weight. The owner needs to know where each gram of gold came from, issue a sales invoice that meets Colombian rules, keep petty-cash receipts, and balance the cash drawer every night. Before the original system, all of this lived in spreadsheets and paper.
+A jewelry counter sells 18k gold pieces whose value depends on their weight. The owner needs to know where each gram of gold came from, issue a Colombian-style sales invoice, keep petty-cash receipts, and balance the cash drawer every night. Before the original system, all of this lived in spreadsheets and paper.
 
 | Who | What they do here |
 |---|---|
@@ -100,7 +100,7 @@ Gold by karat across lots, stock and sales; gross margin without VAT from costs 
 | Business need | How Yamesi handles it |
 |---|---|
 | Know which gold purchase every piece came from | Each piece consumes milligrams from a **lot** (supplier, karat, cost per gram). A lot can never go negative. |
-| A Colombian sales invoice with everything the law asks for | Issuer and buyer identification, DIAN numbering resolution, 19% VAT per line, payment, amount in words, gold karat, fineness and weight, a lifetime gold warranty, CUFE and QR (see below) |
+| A Colombian-style sales invoice (demonstration, no tax validity) | Issuer and buyer identification, DIAN numbering resolution, 19% VAT per line, payment, amount in words, gold karat, fineness and weight, a lifetime gold warranty, CUFE and QR (see below) |
 | Consecutive invoice numbers with no gaps | A counter incremented **inside** the invoice transaction. A PostgreSQL `SEQUENCE` leaves gaps on rollback. |
 | Never sell the same piece twice | Pieces locked in a fixed order, sold all-or-nothing, and `UNIQUE (piece_id)` on invoice lines |
 | Keep the catalog up to date | **Inventory portal:** search and filter the catalog, edit a piece in stock (name, reference, size, category, price) and replace its photo by drag and drop. Every change goes to the audit log with its old value; sold pieces are locked because they belong to an invoice. |
@@ -117,7 +117,7 @@ Gold by karat across lots, stock and sales; gross margin without VAT from costs 
 - **Frontend:** React 19 + TypeScript (Vite), unprivileged nginx
 - **AI (optional):** Qwen2.5 3B via Ollama, with tool calling
 - **Invoice:** PDFKit and `qrcode`, CUFE with SHA-384 as defined by the DIAN
-- **Quality:** Jest + Supertest, 53 tests (22 unit, 29 integration against PostgreSQL, 2 against a real S3 server), CodeQL, Gitleaks, `npm audit`, Dependabot
+- **Quality:** Jest + Supertest, 53 tests (22 unit, 29 integration against PostgreSQL, 2 against RustFS, a real S3-compatible server), CodeQL, Gitleaks, `npm audit`, Dependabot
 
 ## Architecture
 
@@ -172,6 +172,8 @@ make up-ai                # same, plus the local model (~2 GB download the first
 Demo users are `admin@yamesi.local` and `vendedor@yamesi.local`, password from `DEMO_PASSWORD`. The seed loads only into an empty database: 44 pieces from the store's catalog ([`backend/demo-assets/catalog.json`](backend/demo-assets/catalog.json), photos uploaded to the S3 bucket on first start) and 2 synthetic gold lots. Labor costs and lot prices are synthetic, so the margins are illustrative.
 
 ## Colombian sales invoice
+
+> **Demonstration only.** Yamesi Core generates a Colombian-style invoice PDF with VAT, CUFE calculation and QR. It is not transmitted to or validated by the DIAN and has no tax validity: in Colombia an electronic invoice is valid only after it is generated as signed XML, transmitted and validated.
 
 ![Graphic representation of invoice FV-000001: issuer, buyer, items with karat, fineness and grams, 19% VAT, total in words, lifetime gold warranty, CUFE and QR](docs/screenshots/06-invoice-pdf.png)
 
@@ -271,4 +273,8 @@ Highlights:
 
 MIT.
 
-Independent portfolio reconstruction based on engineering patterns from professional work. It contains no employer code or confidential information. The demo catalog (product names, references, sizes, gold weights, prices and photos) comes from the public catalog of Joyería Yamesi, the business this system was built for; everything else is synthetic. AI-assisted development tools were used; the implementation was reviewed and verified through tests and CI.
+Source code: MIT.
+
+Catalog photographs, product names, references and prices in `backend/demo-assets/` and in the screenshots: © Inversiones Zuliani S.A.S. (Joyería Yamesi), not covered by the MIT License. They are a snapshot of the store's public catalog taken on 2026-11-01; prices and availability do not represent the current inventory. Every published image is stripped of metadata, and CI fails if one carries GPS, camera or capture data (`scripts/image-metadata.mjs`).
+
+Independent portfolio reconstruction based on engineering patterns from professional work. It contains no employer code or confidential information; customers, costs and gold lots are synthetic. AI-assisted development tools were used; the implementation was reviewed and verified through tests and CI.
