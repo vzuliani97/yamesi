@@ -82,13 +82,13 @@ describe('Gold lots and pieces', () => {
     expect(response.body.imageUrl).toMatch(/^memory:\/\/pieces\/.+\.png$/);
     expect(await remainingMg(lotId)).toBe(50_000 - 3_250);
 
-    // A reference identifies one piece; the rejected request rolls back and leaves the lot untouched.
-    const duplicate = await createPieceRequest({ ...fields, reference: 'AN-DAM-172' });
-    expect(duplicate.status).toBe(409);
-    expect(duplicate.body.error.code).toBe('REFERENCE_TAKEN');
-    expect(await remainingMg(lotId)).toBe(50_000 - 3_250);
+    // A reference is a catalog code: a second unit of the same product shares it, with its own serial and gold.
+    const secondUnit = await createPieceRequest({ ...fields, reference: 'AN-DAM-172' });
+    expect(secondUnit.status).toBe(201);
+    expect(secondUnit.body).toMatchObject({ sku: 'P-00002', reference: 'AN-DAM-172' });
+    expect(await remainingMg(lotId)).toBe(50_000 - 2 * 3_250);
 
-    // Empty optional form fields mean "no reference", so pieces without one do not collide.
+    // Empty optional form fields mean no reference and no size.
     const plain = await createPieceRequest({ ...fields, reference: '', size: '' });
     expect(plain.status).toBe(201);
     expect(plain.body).toMatchObject({ reference: null, size: null });
@@ -134,7 +134,7 @@ describe('Gold lots and pieces', () => {
       after: { price: 945_000, size: 'Talla 7', name: 'Anillo Dama' },
     });
 
-    expect((await edit(piece, { reference: 'an-dam-171' })).body.error.code).toBe('REFERENCE_TAKEN');
+    expect((await edit(piece, { reference: 'an-dam-171' })).body).toMatchObject({ reference: 'AN-DAM-171' });
     expect((await edit(piece, { grams: 9 })).status).toBe(400);
     expect((await edit(piece, {})).status).toBe(400);
     expect((await edit(piece, { price: 1 }, sellerToken)).status).toBe(403);

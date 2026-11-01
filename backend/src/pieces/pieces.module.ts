@@ -82,12 +82,6 @@ const UPDATE_COLUMNS: Record<keyof UpdatePieceInput, string> = {
   price: 'price',
 };
 
-const referenceTaken = (error: { code?: string; constraint?: string }) => {
-  if (error.code === '23505' && error.constraint === 'pieces_reference_key') {
-    throw new AppError(409, 'REFERENCE_TAKEN', 'Another piece already uses this reference');
-  }
-  throw error;
-};
 
 const listQuerySchema = z.object({ status: z.enum(['IN_STOCK', 'SOLD']).optional() });
 
@@ -190,8 +184,8 @@ export class PiecesService {
         });
       }
 
-      const { rows } = await client
-        .query<{ id: number }>(
+      // reference is the catalog code (several units can share it); sku is this physical piece's serial.
+      const { rows } = await client.query<{ id: number }>(
           `INSERT INTO pieces (name, reference, size, category, lot_id, gold_mg, labor_cost, price, image_key, created_by)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
            RETURNING id`,
@@ -207,8 +201,7 @@ export class PiecesService {
             imageKey,
             actor.id,
           ],
-        )
-        .catch(referenceTaken);
+        );
 
       await this.audit.record(client, {
         actorId: actor.id,
@@ -230,9 +223,7 @@ export class PiecesService {
       const before = await this.lockInStock(client, id);
       const fields = Object.keys(input) as Array<keyof UpdatePieceInput>;
       const assignments = fields.map((field, index) => `${UPDATE_COLUMNS[field]} = $${index + 2}`);
-      await client
-        .query(`UPDATE pieces SET ${assignments.join(', ')} WHERE id = $1`, [id, ...fields.map((field) => input[field])])
-        .catch(referenceTaken);
+      await client.query(`UPDATE pieces SET ${assignments.join(', ')} WHERE id = $1`, [id, ...fields.map((field) => input[field])]);
 
       await this.audit.record(client, {
         actorId: actor.id,

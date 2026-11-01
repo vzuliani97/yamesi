@@ -43,7 +43,7 @@ flowchart LR
 ```
 
 1. The admin registers a gold lot: supplier, grams and cost per gram.
-2. Each piece is created with its catalog reference, size, gold weight, labor and price, and a photo stored in S3. Its gold leaves the lot in the same transaction.
+2. Each piece is created with its catalog reference, size, gold weight, labor and price, and a photo stored in S3. Its gold leaves the lot in the same transaction. The reference is the catalog's product code and several units can share it (149 of the store's 1,000 catalog products have more than one in stock); each physical piece keeps its own serial (`P-00001`), which the invoice prints next to the reference.
 3. In the inventory portal the admin searches the catalog, edits a piece in stock and replaces its photo. Every change is audited with its old value; sold pieces stay as invoiced.
 
 ![Inventory portal: catalog with photos, stock value and filters](docs/screenshots/02-inventory-gold-lots.png)
@@ -186,7 +186,7 @@ What the PDF carries, and where the requirement comes from:
 | Buyer: name, document type and number (or "consumidor final" 222222222222), email, phone, address | Art. 617 c); the email is where an electronic invoice is delivered |
 | Issue date and time with UTC offset, due date, payment form (contado) and means, card or transfer reference | Art. 617 e); Resolución DIAN 000165 de 2023 |
 | Numbering authorization: resolution number, date, prefix, range and validity | Resolución 000165 de 2023 |
-| Each piece: catalog reference, description with size or length, karat (18k only, the store's gold; 24k is too soft to make jewelry), fineness ("ley 750" for 18k), gold weight, unit value before VAT, VAT, total | Art. 617 f); prices include VAT, so each line is split into base + 19% VAT, which always add up to the price |
+| Each piece: catalog reference and piece serial, description with size or length, karat (18k only, the store's gold; 24k is too soft to make jewelry), fineness ("ley 750" for 18k), gold weight, unit value before VAT, VAT, total | Art. 617 f); prices include VAT, so each line is split into base + 19% VAT, which always add up to the price |
 | Subtotal, VAT, total, and the total in words ("TRES MILLONES DE PESOS M/CTE") | Art. 617 g) |
 | Lifetime warranty on the gold (karat and weight), plus the legal warranty of Ley 1480 de 2011 | Store policy; text configurable with `GOLD_WARRANTY_TEXT` |
 | CUFE (SHA-384) and a QR with the document data and the DIAN lookup URL, on every page | Resolución 000165 de 2023, technical annex 11.1.6 and 11.1.7 |

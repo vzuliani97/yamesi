@@ -245,7 +245,8 @@ export function renderInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
       const textTop = withPhotos ? y + rowHeight / 2 - 11 : y + 5;
       doc.font('Helvetica-Bold').fontSize(8.5).text(description, textX, textTop, { width: textWidth, lineBreak: false, ellipsis: true });
       doc.font('Helvetica').fontSize(7.5).fillColor(COLOR.muted)
-        .text(`Oro ${item.karat}k · ley ${fineness(item.karat)} · ${grams.format(item.grams)} g`, textX, textTop + 12, { width: textWidth });
+        // With a catalog reference in its own column, the piece's serial identifies the exact unit sold.
+        .text(`Oro ${item.karat}k · ley ${fineness(item.karat)} · ${grams.format(item.grams)} g${item.reference ? ` · ${item.sku}` : ''}`, textX, textTop + 12, { width: textWidth });
       doc.moveTo(PAGE.left, y + rowHeight).lineTo(PAGE.right, y + rowHeight).lineWidth(0.5).strokeColor(COLOR.line).stroke();
       y += rowHeight;
     });
