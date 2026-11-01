@@ -41,6 +41,7 @@ export interface InvoiceItem {
   sku: string;
   reference: string | null;
   size: string | null;
+  imageUrl: string | null;
   name: string;
   karat: number;
   grams: number;

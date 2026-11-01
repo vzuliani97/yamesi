@@ -95,13 +95,21 @@ export async function createPiece(
     laborCost = 100_000,
     reference = null,
     size = null,
-  }: { price?: number; goldMg?: number; laborCost?: number; reference?: string | null; size?: string | null } = {},
+    imageKey = null,
+  }: {
+    price?: number;
+    goldMg?: number;
+    laborCost?: number;
+    reference?: string | null;
+    size?: string | null;
+    imageKey?: string | null;
+  } = {},
 ): Promise<number> {
   await pool.query('UPDATE gold_lots SET remaining_mg = remaining_mg - $1 WHERE id = $2', [goldMg, lotId]);
   const { rows } = await pool.query<{ id: number }>(
-    `INSERT INTO pieces (name, reference, size, category, lot_id, gold_mg, labor_cost, price, created_by)
-     VALUES ('Pieza de prueba', $1, $2, 'ANILLO', $3, $4, $5, $6, $7) RETURNING id`,
-    [reference, size, lotId, goldMg, laborCost, price, adminId],
+    `INSERT INTO pieces (name, reference, size, category, lot_id, gold_mg, labor_cost, price, image_key, created_by)
+     VALUES ('Pieza de prueba', $1, $2, 'ANILLO', $3, $4, $5, $6, $7, $8) RETURNING id`,
+    [reference, size, lotId, goldMg, laborCost, price, imageKey, adminId],
   );
   return rows[0].id;
 }

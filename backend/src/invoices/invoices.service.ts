@@ -56,6 +56,7 @@ interface ItemRow {
   sku: string;
   reference: string | null;
   size: string | null;
+  image_key: string | null;
   name: string;
   karat: number;
   gold_mg: number;
@@ -312,7 +313,7 @@ export class InvoicesService {
       subtotal: row.subtotal,
       vatTotal: row.vat_total,
       total: row.total,
-      items: await this.items(id),
+      items: await this.pdfItems(id),
       cufe: row.cufe ?? computeCufe(cufeInput),
       cufeInput,
     });
@@ -354,8 +355,30 @@ export class InvoicesService {
   }
 
   private async items(invoiceId: string) {
+    const rows = await this.itemRows(invoiceId);
+    return Promise.all(
+      rows.map(async ({ image_key, ...row }) => ({
+        ...this.toItem(row),
+        imageUrl: image_key ? await this.storage.signedUrl(image_key) : null,
+      })),
+    );
+  }
+
+  /** Lines for the PDF, with each piece's photo when it is a JPEG (embedded as is, no decoding). */
+  private async pdfItems(invoiceId: string) {
+    const rows = await this.itemRows(invoiceId);
+    return Promise.all(
+      rows.map(async ({ image_key, ...row }) => {
+        const photo = image_key ? await this.storage.get(image_key).catch(() => null) : null;
+        const isJpeg = photo !== null && photo[0] === 0xff && photo[1] === 0xd8 && photo[2] === 0xff;
+        return { ...this.toItem(row), photo: isJpeg ? photo : null };
+      }),
+    );
+  }
+
+  private async itemRows(invoiceId: string) {
     const { rows } = await this.db.query<ItemRow>(
-      `SELECT ii.piece_id, p.sku, p.reference, p.size, p.name, l.karat, p.gold_mg, ii.price, ii.cost, ii.vat_rate, ii.tax_base, ii.vat
+      `SELECT ii.piece_id, p.sku, p.reference, p.size, p.image_key, p.name, l.karat, p.gold_mg, ii.price, ii.cost, ii.vat_rate, ii.tax_base, ii.vat
        FROM invoice_items ii
        JOIN pieces p ON p.id = ii.piece_id
        JOIN gold_lots l ON l.id = p.lot_id
@@ -363,7 +386,11 @@ export class InvoicesService {
        ORDER BY p.id`,
       [invoiceId],
     );
-    return rows.map((row) => ({
+    return rows;
+  }
+
+  private toItem(row: Omit<ItemRow, 'image_key' | 'cost'>) {
+    return {
       pieceId: row.piece_id,
       sku: row.sku,
       reference: row.reference,
@@ -375,7 +402,7 @@ export class InvoicesService {
       taxBase: row.tax_base,
       vat: row.vat,
       price: row.price,
-    }));
+    };
   }
 
   private toSummary(row: InvoiceRow) {

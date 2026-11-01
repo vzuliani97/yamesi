@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { computeCufe } from '../../src/invoices/cufe';
 import { dianDateTime } from '../../src/invoices/invoices.service';
 import {
@@ -154,8 +156,10 @@ describe('Invoicing', () => {
           ...overrides,
         });
 
-    it('discriminates 19% VAT per line, stores the buyer and issues a CUFE that matches the DIAN formula', async () => {
+    it('discriminates 19% VAT per line, stores the buyer, issues a CUFE that matches the DIAN formula and prints each photo', async () => {
+      await ctx.storage.put('pieces/ring.jpg', readFileSync(path.join(__dirname, '../fixtures/piece.jpg')), 'image/jpeg');
       const ring = await createPiece(ctx.pool, adminId, lotId, {
+        imageKey: 'pieces/ring.jpg',
         price: 1_190_000,
         goldMg: 3_000,
         laborCost: 100_000,
@@ -181,7 +185,11 @@ describe('Invoicing', () => {
       });
       expect(data.items).toEqual([
         expect.objectContaining({ reference: 'AN-DAM-172', size: 'Talla 7', grams: 3, taxBase: 1_000_000, vat: 190_000, price: 1_190_000 }),
-        expect.objectContaining({ reference: null, taxBase: 1_386_555, vat: 263_445, price: 1_650_000, vatRate: 19 }),
+        expect.objectContaining({ reference: null, taxBase: 1_386_555, vat: 263_445, price: 1_650_000, imageUrl: null }),
+      ]);
+      expect(data.items).toEqual([
+        expect.objectContaining({ imageUrl: 'memory://pieces/ring.jpg' }),
+        expect.objectContaining({ imageUrl: null }),
       ]);
 
       // Recompute the CUFE from what was stored: same inputs, same SHA-384, as a DIAN validator would.
@@ -200,6 +208,8 @@ describe('Invoicing', () => {
       expect(pdf.status).toBe(200);
       expect(pdf.headers['content-disposition']).toContain('factura-FV-000001.pdf');
       expect((pdf.body as Buffer).subarray(0, 4).toString()).toBe('%PDF');
+      // The QR is drawn as vectors, so the only embedded image is the ring's photo.
+      expect((pdf.body as Buffer).toString('latin1').match(/\/Subtype \/Image/g)).toHaveLength(1);
     });
 
     it('uses the final-consumer id 222222222222 in the CUFE when no document is given', async () => {

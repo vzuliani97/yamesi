@@ -132,6 +132,22 @@ export function SellPage({ token, onUnauthorized }: PageProps) {
               <span className="hint">
                 Base {formatCop(issued.subtotal)} · IVA {formatCop(issued.vatTotal)} · CUFE {issued.cufe?.slice(0, 12)}…
               </span>
+              {issued.items && (
+                <ul className="issued-items">
+                  {issued.items.map((item) => (
+                    <li key={item.pieceId}>
+                      {item.imageUrl ? <img src={item.imageUrl} alt="" /> : <span className="thumb-empty" aria-hidden="true" />}
+                      <span>
+                        {item.name}
+                        <small>
+                          {item.reference ?? item.sku} · {formatGrams(item.grams)}
+                        </small>
+                      </span>
+                      <strong>{formatCop(item.price)}</strong>
+                    </li>
+                  ))}
+                </ul>
+              )}
               <button type="button" className="btn-secondary" onClick={() => void openPdf(`/invoices/${issued.id}/pdf`, token)}>
                 Ver factura (PDF)
               </button>
@@ -213,8 +229,11 @@ export function SellPage({ token, onUnauthorized }: PageProps) {
             {cart.length === 0 && <p className="hint">Selecciona una o más piezas del catálogo.</p>}
             {cart.map((piece) => (
               <div key={piece.id} className="summary-line item">
-                <span>
-                  {piece.name} · {piece.reference ?? piece.sku} · {formatGrams(piece.grams)}
+                <span className="line-piece">
+                  {piece.imageUrl ? <img src={piece.imageUrl} alt="" /> : <span className="thumb-empty" aria-hidden="true" />}
+                  <span>
+                    {piece.name} · {piece.reference ?? piece.sku} · {formatGrams(piece.grams)}
+                  </span>
                 </span>
                 <span>{formatCop(piece.price)}</span>
               </div>

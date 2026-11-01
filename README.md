@@ -30,6 +30,71 @@ Everything in this repository, end to end:
 - **AI assistant:** a local model (Ollama) limited to five read-only aggregate tools, with an evaluation of its answers.
 - **Delivery and quality:** Docker Compose for the whole stack, non-root containers, a scripted business day (`make demo`), 53 automated tests and CI with CodeQL, Gitleaks and `npm audit`.
 
+## Processes, step by step
+
+### 1. Receive gold and register pieces
+
+```mermaid
+flowchart LR
+  G[Gold purchase] -->|grams and cost per gram| L[(Gold lot)]
+  L -->|milligrams consumed, never below zero| P[Piece: reference, size,<br/>weight, labor, price, photo]
+  P --> C[Catalog in the inventory portal]
+  C -->|edit price, size, photo| A[(Audit log)]
+```
+
+1. The admin registers a gold lot: supplier, grams and cost per gram.
+2. Each piece is created with its catalog reference, size, gold weight, labor and price, and a photo stored in S3. Its gold leaves the lot in the same transaction.
+3. In the inventory portal the admin searches the catalog, edits a piece in stock and replaces its photo. Every change is audited with its old value; sold pieces stay as invoiced.
+
+![Inventory portal: catalog with photos, stock value and filters](docs/screenshots/02-inventory-gold-lots.png)
+
+### 2. Sell and issue the invoice
+
+```mermaid
+sequenceDiagram
+  actor S as Seller
+  participant UI as Point of sale
+  participant API as NestJS API
+  participant DB as PostgreSQL
+  participant S3 as S3
+  S->>UI: pick pieces by photo, reference or size; buyer and payment
+  UI->>API: POST /invoices with an Idempotency-Key
+  API->>DB: BEGIN, shared lock on the day, pieces locked in id order
+  API->>DB: pieces SOLD, next gap-free number, VAT per line, CUFE
+  API->>DB: COMMIT invoice, lines with frozen cost, audit record
+  API-->>UI: 201 with each line and its photo
+  UI->>API: GET /invoices/:id/pdf
+  API->>S3: read the piece photos, store the PDF
+  API-->>UI: PDF with photos, CUFE and QR
+```
+
+1. The seller finds pieces by photo, name, reference or size; the summary shows each piece with its photo, the VAT split and the gold weight.
+2. The invoice is created in one transaction. A retry with the same key returns the same invoice; the same key with other data is a `409`; a piece someone else just sold gives `PIECE_NOT_AVAILABLE`.
+3. The PDF prints every line with its photo, reference, size, karat, fineness and weight, the total in words, the lifetime gold warranty, the CUFE and the QR.
+
+![Point of sale with catalog photos and the sale summary](docs/screenshots/01-sell-invoices.png)
+
+### 3. Petty cash with receipts
+
+1. An expense has a category, a description, an amount and a photo of its receipt. The file type is checked by its first bytes, never by its name, and stored in S3.
+2. Expenses belong to the business day; once the day is closed, a new one gets `DAY_CLOSED`.
+
+![Petty cash with the receipt photos of the day](docs/screenshots/03-petty-cash-receipt.png)
+
+### 4. Close the day
+
+1. Expected cash = opening + cash sales − expenses. Card and transfer sales do not count.
+2. The cashier enters the counted cash; the difference is recorded.
+3. The closing takes an exclusive lock on the day, so nothing slips in while totals are computed; afterwards the day is locked.
+
+![Daily closing: expected versus counted cash, day locked](docs/screenshots/04-day-closing.png)
+
+### 5. Reports, audit and the assistant
+
+Gold by karat across lots, stock and sales; gross margin without VAT from costs frozen at sale time; the audit trail of every step above; and the optional local assistant, which only reads aggregates.
+
+![Reports: gold, margin and audit trail](docs/screenshots/05-reports-audit.png)
+
 ## What it solves
 
 | Business need | How Yamesi handles it |

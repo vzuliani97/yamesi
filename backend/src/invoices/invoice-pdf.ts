@@ -15,6 +15,8 @@ export interface InvoicePdfItem {
   taxBase: number;
   vat: number;
   price: number;
+  /** JPEG photo of the piece, printed on its line. */
+  photo?: Buffer | null;
 }
 
 export interface InvoicePdfData {
@@ -204,8 +206,11 @@ export function renderInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
     };
     tableHeader();
 
+    // Lines grow to fit a photo when at least one piece has one.
+    const withPhotos = data.items.some((item) => item.photo);
+    const photoSize = 34;
     data.items.forEach((item, index) => {
-      const rowHeight = 30;
+      const rowHeight = withPhotos ? photoSize + 8 : 30;
       if (y + rowHeight > PAGE.footerTop - 10) {
         doc.addPage();
         drawHeader();
@@ -224,12 +229,23 @@ export function renderInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
       ];
       doc.font('Helvetica').fontSize(8.5).fillColor(COLOR.ink);
       cells.forEach((value, i) => {
-        if (value !== null) doc.text(value, cols[i].x + 3, y + 7, { width: cols[i].w - 6, align: cols[i].align, lineBreak: false, ellipsis: true });
+        if (value !== null) doc.text(value, cols[i].x + 3, withPhotos ? y + rowHeight / 2 - 4 : y + 7, { width: cols[i].w - 6, align: cols[i].align, lineBreak: false, ellipsis: true });
       });
       const description = item.size ? `${item.name} · ${item.size}` : item.name;
-      doc.font('Helvetica-Bold').fontSize(8.5).text(description, cols[2].x + 3, y + 5, { width: cols[2].w - 6, lineBreak: false, ellipsis: true });
+      let textX = cols[2].x + 3;
+      if (item.photo) {
+        doc.save();
+        doc.roundedRect(textX, y + 4, photoSize, photoSize, 4).clip();
+        doc.image(item.photo, textX, y + 4, { cover: [photoSize, photoSize], align: 'center', valign: 'center' });
+        doc.restore();
+      }
+      if (withPhotos) textX += photoSize + 6;
+      const textWidth = cols[2].w - 6 - (textX - cols[2].x - 3);
+      // With photos, the two text lines sit centered next to the picture.
+      const textTop = withPhotos ? y + rowHeight / 2 - 11 : y + 5;
+      doc.font('Helvetica-Bold').fontSize(8.5).text(description, textX, textTop, { width: textWidth, lineBreak: false, ellipsis: true });
       doc.font('Helvetica').fontSize(7.5).fillColor(COLOR.muted)
-        .text(`Oro ${item.karat}k · ley ${fineness(item.karat)} · ${grams.format(item.grams)} g`, cols[2].x + 3, y + 17, { width: cols[2].w - 6 });
+        .text(`Oro ${item.karat}k · ley ${fineness(item.karat)} · ${grams.format(item.grams)} g`, textX, textTop + 12, { width: textWidth });
       doc.moveTo(PAGE.left, y + rowHeight).lineTo(PAGE.right, y + rowHeight).lineWidth(0.5).strokeColor(COLOR.line).stroke();
       y += rowHeight;
     });
