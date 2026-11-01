@@ -1,0 +1,442 @@
+[
+  {
+    "reference": "ANI-SOL-59",
+    "name": "Anillo de Dama Solitario",
+    "category": "ANILLO",
+    "size": "Talla 4",
+    "grams": 1.22,
+    "laborCost": 73000,
+    "price": 854000,
+    "photo": "ani-sol-59.jpg"
+  },
+  {
+    "reference": "CAD-45-38",
+    "name": "Cadena Tejido Escalera Plana Espejo Oro Amarillo",
+    "category": "CADENA",
+    "size": "45 cm",
+    "grams": 2.2,
+    "laborCost": 132000,
+    "price": 1672000,
+    "photo": "cad-45-38.jpg"
+  },
+  {
+    "reference": "CAN-62",
+    "name": "Candongas",
+    "category": "ARETES",
+    "size": null,
+    "grams": 4,
+    "laborCost": 240000,
+    "price": 2520000,
+    "photo": "can-62.jpg"
+  },
+  {
+    "reference": "PUL-63",
+    "name": "Pulsera Tejido Botón G con trébol diamantada Oro Amarillo Nacional",
+    "category": "PULSERA",
+    "size": "18.4 cm",
+    "grams": 2.06,
+    "laborCost": 124000,
+    "price": 1318400,
+    "photo": "pul-63.jpg"
+  },
+  {
+    "reference": "DJ-REL-124",
+    "name": "Dije Cristo 2 Oros",
+    "category": "DIJE",
+    "size": null,
+    "grams": 0.61,
+    "laborCost": 37000,
+    "price": 427000,
+    "photo": "dj-rel-124.jpg"
+  },
+  {
+    "reference": "AN-DAM-172",
+    "name": "Anillo Dama",
+    "category": "ANILLO",
+    "size": "Talla 7",
+    "grams": 1.5,
+    "laborCost": 90000,
+    "price": 945000,
+    "photo": "an-dam-172.jpg"
+  },
+  {
+    "reference": "ANI-GR-08",
+    "name": "Anillo de Grados",
+    "category": "ANILLO",
+    "size": "Talla 6 1/2",
+    "grams": 2,
+    "laborCost": 120000,
+    "price": 1400000,
+    "photo": "ani-gr-08.jpg"
+  },
+  {
+    "reference": "TOP-FIG-24",
+    "name": "Topos de Estrellas Grandes",
+    "category": "ARETES",
+    "size": null,
+    "grams": 0.81,
+    "laborCost": 49000,
+    "price": 542700,
+    "photo": "top-fig-24.jpg"
+  },
+  {
+    "reference": "DIJ-INI-105",
+    "name": "Dije Inicial Z",
+    "category": "DIJE",
+    "size": null,
+    "grams": 0.56,
+    "laborCost": 34000,
+    "price": 392000,
+    "photo": "dij-ini-105.jpg"
+  },
+  {
+    "reference": "ANI-15-46",
+    "name": "Anillo de 15 Troquelado",
+    "category": "ANILLO",
+    "size": "Talla 4 1/2",
+    "grams": 0.77,
+    "laborCost": 46000,
+    "price": 539000,
+    "photo": "ani-15-46.jpg"
+  },
+  {
+    "reference": "AR-29",
+    "name": "Aretes Corazón",
+    "category": "ARETES",
+    "size": null,
+    "grams": 1.14,
+    "laborCost": 68000,
+    "price": 710000,
+    "photo": "ar-29.jpg"
+  },
+  {
+    "reference": "PUL-BB-18",
+    "name": "Pulsera Bebé 3 Oros Diamantada",
+    "category": "PULSERA",
+    "size": "17 cm",
+    "grams": 1.2,
+    "laborCost": 72000,
+    "price": 912000,
+    "photo": "pul-bb-18.jpg"
+  },
+  {
+    "reference": "DIJ-VAR-142",
+    "name": "Dije Corona Troquelado",
+    "category": "DIJE",
+    "size": null,
+    "grams": 0.51,
+    "laborCost": 31000,
+    "price": 357000,
+    "photo": "dij-var-142.jpg"
+  },
+  {
+    "reference": "ARG-12",
+    "name": "Argolla Lisa 3 mm Oro Amarillo",
+    "category": "ANILLO",
+    "size": "Talla 12 1/4",
+    "grams": 2.1,
+    "laborCost": 126000,
+    "price": 1302000,
+    "photo": "arg-12.jpg"
+  },
+  {
+    "reference": "PUL-TJ-48",
+    "name": "Pulsera Tejida",
+    "category": "PULSERA",
+    "size": null,
+    "grams": 0.57,
+    "laborCost": 34000,
+    "price": 399000,
+    "photo": "pul-tj-48.jpg"
+  },
+  {
+    "reference": "ANI-DIAM-13",
+    "name": "Anillo con diamante",
+    "category": "ANILLO",
+    "size": "Talla 7 1/2",
+    "grams": 1,
+    "laborCost": 1294000,
+    "price": 2800000,
+    "photo": "ani-diam-13.jpg"
+  },
+  {
+    "reference": "TOB-11",
+    "name": "Tobillera Tejido Palito Punto",
+    "category": "OTRO",
+    "size": "24.5 cm",
+    "grams": 1.6,
+    "laborCost": 96000,
+    "price": 1216000,
+    "photo": "tob-11.jpg"
+  },
+  {
+    "reference": "ANI-SOL-58",
+    "name": "Anillo Solitario Dama",
+    "category": "ANILLO",
+    "size": "Talla 5",
+    "grams": 1.4,
+    "laborCost": 84000,
+    "price": 980000,
+    "photo": "ani-sol-58.jpg"
+  },
+  {
+    "reference": "CAD-60-41",
+    "name": "Cadena Tejido Escalera Plana Espejo Oro Amarillo",
+    "category": "CADENA",
+    "size": "60 cm",
+    "grams": 2.71,
+    "laborCost": 163000,
+    "price": 2059600,
+    "photo": "cad-60-41.jpg"
+  },
+  {
+    "reference": "CAN-MEL-55",
+    "name": "Candonga Melcocha",
+    "category": "ARETES",
+    "size": null,
+    "grams": 1.2,
+    "laborCost": 72000,
+    "price": 756000,
+    "photo": "can-mel-55.jpg"
+  },
+  {
+    "reference": "PUL-61",
+    "name": "Pulsera Tejido Botón G con virgen milagrosa Oro Amarillo Nacional",
+    "category": "PULSERA",
+    "size": "17.7 cm",
+    "grams": 1.88,
+    "laborCost": 113000,
+    "price": 1203200,
+    "photo": "pul-61.jpg"
+  },
+  {
+    "reference": "DJ-REL-123",
+    "name": "Dije Cristo",
+    "category": "DIJE",
+    "size": null,
+    "grams": 0.61,
+    "laborCost": 37000,
+    "price": 427000,
+    "photo": "dj-rel-123.jpg"
+  },
+  {
+    "reference": "AN-DAM-123",
+    "name": "Anillo de Dama",
+    "category": "ANILLO",
+    "size": "Talla 8 1/2",
+    "grams": 0.72,
+    "laborCost": 43000,
+    "price": 504000,
+    "photo": "an-dam-123.jpg"
+  },
+  {
+    "reference": "TOP-FIG-23",
+    "name": "Topo Luna Pequeñas",
+    "category": "ARETES",
+    "size": null,
+    "grams": 0.48,
+    "laborCost": 29000,
+    "price": 321600,
+    "photo": "top-fig-23.jpg"
+  },
+  {
+    "reference": "DIJ-INI-102",
+    "name": "Dije Inicial R",
+    "category": "DIJE",
+    "size": null,
+    "grams": 0.43,
+    "laborCost": 26000,
+    "price": 301000,
+    "photo": "dij-ini-102.jpg"
+  },
+  {
+    "reference": "ANI-15-32",
+    "name": "Anillo 15 Troquelado",
+    "category": "ANILLO",
+    "size": "Talla 8",
+    "grams": 0.9,
+    "laborCost": 54000,
+    "price": 603000,
+    "photo": "ani-15-32.jpg"
+  },
+  {
+    "reference": "AR-26",
+    "name": "Aretes Flor",
+    "category": "ARETES",
+    "size": null,
+    "grams": 0.83,
+    "laborCost": 50000,
+    "price": 560000,
+    "photo": "ar-26.jpg"
+  },
+  {
+    "reference": "PUL-BB-17",
+    "name": "Pulsera Bebé Escalera Plana 3 Oros",
+    "category": "PULSERA",
+    "size": null,
+    "grams": 1.1,
+    "laborCost": 66000,
+    "price": 836000,
+    "photo": "pul-bb-17.jpg"
+  },
+  {
+    "reference": "DIJ-VAR-141",
+    "name": "Dije Corazón Diamantado Troquelado",
+    "category": "DIJE",
+    "size": null,
+    "grams": 0.5,
+    "laborCost": 30000,
+    "price": 350000,
+    "photo": "dij-var-141.jpg"
+  },
+  {
+    "reference": "ANI-ESM-12",
+    "name": "Anillo Diamante y Rubí",
+    "category": "ANILLO",
+    "size": "Talla 6 1/2",
+    "grams": 1,
+    "laborCost": 3224000,
+    "price": 6975000,
+    "photo": "ani-esm-12.jpg"
+  },
+  {
+    "reference": "TOB-14",
+    "name": "Tobillera Oro Nacional",
+    "category": "OTRO",
+    "size": "25.5 cm",
+    "grams": 2.1,
+    "laborCost": 126000,
+    "price": 1302000,
+    "photo": "tob-14.jpg"
+  },
+  {
+    "reference": "ANI-SOL-54",
+    "name": "Anillo de Dama Solitario Oro Blanco",
+    "category": "ANILLO",
+    "size": "Talla 6",
+    "grams": 2.5,
+    "laborCost": 150000,
+    "price": 1675000,
+    "photo": "ani-sol-54.jpg"
+  },
+  {
+    "reference": "CAD-60-40",
+    "name": "Cadena Tejido Escalera Tres Oros Diamantada",
+    "category": "CADENA",
+    "size": "60 cm",
+    "grams": 3,
+    "laborCost": 180000,
+    "price": 2280000,
+    "photo": "cad-60-40.jpg"
+  },
+  {
+    "reference": "CAN-MEL-52",
+    "name": "Candonga Melcocha Mediana",
+    "category": "ARETES",
+    "size": null,
+    "grams": 1.22,
+    "laborCost": 73000,
+    "price": 768600,
+    "photo": "can-mel-52.jpg"
+  },
+  {
+    "reference": "PUL-60",
+    "name": "Pulsera Tejido Botón G con corazón diamantada Oro Amarillo Nacional",
+    "category": "PULSERA",
+    "size": "17.5 cm",
+    "grams": 2.32,
+    "laborCost": 139000,
+    "price": 1484800,
+    "photo": "pul-60.jpg"
+  },
+  {
+    "reference": "DJ-REL-118",
+    "name": "Dije Cruz Troquelado",
+    "category": "DIJE",
+    "size": null,
+    "grams": 0.53,
+    "laborCost": 32000,
+    "price": 371000,
+    "photo": "dj-rel-118.jpg"
+  },
+  {
+    "reference": "TOP-ANI-38",
+    "name": "Topo Herradura Caballo Circón Blanco",
+    "category": "ARETES",
+    "size": null,
+    "grams": 0.83,
+    "laborCost": 50000,
+    "price": 556100,
+    "photo": "top-ani-38.jpg"
+  },
+  {
+    "reference": "DIJ-INI-101",
+    "name": "Dije Inicial S",
+    "category": "DIJE",
+    "size": null,
+    "grams": 0.5,
+    "laborCost": 30000,
+    "price": 350000,
+    "photo": "dij-ini-101.jpg"
+  },
+  {
+    "reference": "ANI-15-31",
+    "name": "Anillo 15 Troquelado Con Circones",
+    "category": "ANILLO",
+    "size": "Talla 9",
+    "grams": 1.3,
+    "laborCost": 78000,
+    "price": 819000,
+    "photo": "ani-15-31.jpg"
+  },
+  {
+    "reference": "AR-25",
+    "name": "Aretes",
+    "category": "ARETES",
+    "size": null,
+    "grams": 1.6,
+    "laborCost": 96000,
+    "price": 1008000,
+    "photo": "ar-25.jpg"
+  },
+  {
+    "reference": "DIJ-VAR-140",
+    "name": "Dije Trébol Diamantado Troquelado",
+    "category": "DIJE",
+    "size": null,
+    "grams": 0.6,
+    "laborCost": 36000,
+    "price": 420000,
+    "photo": "dij-var-140.jpg"
+  },
+  {
+    "reference": "CAD-60-38",
+    "name": "Cadena Tejido Escalera Diamantada",
+    "category": "CADENA",
+    "size": "60 cm",
+    "grams": 1.4,
+    "laborCost": 84000,
+    "price": 1064000,
+    "photo": "cad-60-38.jpg"
+  },
+  {
+    "reference": "PUL-58",
+    "name": "Pulsera Tejido Botón G con mariposa diamantada Oro Amarillo Nacional",
+    "category": "PULSERA",
+    "size": "17.4 cm",
+    "grams": 2.22,
+    "laborCost": 133000,
+    "price": 1420800,
+    "photo": "pul-58.jpg"
+  },
+  {
+    "reference": "TOP-ANI-36",
+    "name": "Topos Mariposa Diamantada",
+    "category": "ARETES",
+    "size": null,
+    "grams": 0.8,
+    "laborCost": 48000,
+    "price": 536000,
+    "photo": "top-ani-36.jpg"
+  }
+]

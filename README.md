@@ -5,9 +5,30 @@
 
 Accounting and inventory system for a small jewelry store. It replaces spreadsheets and paper petty-cash receipts with gold traceability, invoicing, petty cash and a daily cash closing.
 
-This is an **independent rebuild with synthetic data** of a system I built and still maintain for a real business. It contains none of that business's code or data.
+This is an **independent rebuild** of a system I built and still maintain for a real business, Joyería Yamesi in Medellín. It contains none of that business's code, customers or accounting records. The demo pieces are real products from the store's public catalog: **44 pieces with their catalog reference, name, size, gold weight, price and photo**. Users, gold lots, costs and customers are synthetic.
 
-![Point of sale: gold pieces with karat and weight, and the invoice panel with buyer data, payment, 19% VAT and total](docs/screenshots/01-sell-invoices.png)
+![Point of sale: catalog photos with reference, karat, weight and size, and the invoice panel with buyer data, payment, 19% VAT, gold weight and total](docs/screenshots/01-sell-invoices.png)
+
+## What it is for
+
+A jewelry counter sells 18k gold pieces whose value depends on their weight. The owner needs to know where each gram of gold came from, issue a sales invoice that meets Colombian rules, keep petty-cash receipts, and balance the cash drawer every night. Before the original system, all of this lived in spreadsheets and paper.
+
+| Who | What they do here |
+|---|---|
+| Seller | Finds a piece by name, catalog reference or size, adds it to the sale, enters the buyer and payment, and issues the invoice PDF |
+| Administrator | Registers gold lots and pieces with photos, records petty-cash expenses with a receipt photo, closes the day, reads margins and the audit trail |
+| Owner | Asks the optional local AI assistant questions like "how much did we sell today?" without anyone writing a report |
+
+## What I built
+
+Everything in this repository, end to end:
+
+- **Data model and migrations:** gold lots in integer milligrams, pieces that consume gold from their lot, gap-free invoice numbering, VAT split per line, petty cash, daily closings and an audit log, all in plain versioned SQL with database constraints as the last line of defense.
+- **API (NestJS):** authentication with roles, Zod validation on every input, idempotent invoices, row and advisory locks for concurrency, safe image uploads to S3 and a uniform `{error:{code,message}}` format.
+- **Colombian invoice:** the PDF layout, CUFE with SHA-384 checked against the DIAN's official example, the QR, the total in words and the lifetime gold warranty.
+- **Frontend (React):** the point of sale with catalog photos, the invoice panel, inventory, petty cash, closing, reports and the assistant screen.
+- **AI assistant:** a local model (Ollama) limited to five read-only aggregate tools, with an evaluation of its answers.
+- **Delivery and quality:** Docker Compose for the whole stack, non-root containers, a scripted business day (`make demo`), 51 automated tests and CI with CodeQL, Gitleaks and `npm audit`.
 
 ## What it solves
 
@@ -62,7 +83,7 @@ Admins can ask "How much did we sell today?" or "What was this month's gross mar
 
 **Security by design:** the model never writes SQL. It can only call 5 fixed, read-only tools that return aggregates (sales, sales by category, margin, expenses, gold inventory), so the model cannot run arbitrary SQL and no tool returns customer names or IDs. This limits what a prompt injection could achieve. It does not make the assistant immune: a crafted question could still steer it into a misleading summary of the aggregates, which is why every answer lists the data it used. Tool arguments proposed by the model are validated with Zod, and the loop is capped at 4 steps.
 
-**Evaluation with the real model** (qwen2.5:3b on CPU, demo data):
+**Evaluation with the real model** (qwen2.5:3b on CPU, on the earlier 6-piece demo dataset, so the amounts differ from today's seed):
 
 | Question | Answer | Check |
 |---|---|---|
@@ -82,7 +103,7 @@ make up                   # app at http://localhost:8083
 make up-ai                # same, plus the local model (~2 GB download the first time)
 ```
 
-Demo users are `admin@yamesi.local` and `vendedor@yamesi.local`, password from `DEMO_PASSWORD`. The 2 lots and 6 pieces are synthetic and only load into an empty database.
+Demo users are `admin@yamesi.local` and `vendedor@yamesi.local`, password from `DEMO_PASSWORD`. The seed loads only into an empty database: 44 pieces from the store's catalog ([`backend/demo-assets/catalog.json`](backend/demo-assets/catalog.json), photos uploaded to the S3 bucket on first start) and 2 synthetic gold lots. Labor costs and lot prices are synthetic, so the margins are illustrative.
 
 ## Colombian sales invoice
 
@@ -97,7 +118,7 @@ What the PDF carries, and where the requirement comes from:
 | Buyer: name, document type and number (or "consumidor final" 222222222222), email, phone, address | Art. 617 c); the email is where an electronic invoice is delivered |
 | Issue date and time with UTC offset, due date, payment form (contado) and means, card or transfer reference | Art. 617 e); Resolución DIAN 000165 de 2023 |
 | Numbering authorization: resolution number, date, prefix, range and validity | Resolución 000165 de 2023 |
-| Each piece: code, description, karat (18k only, the store's gold; 24k is too soft to make jewelry), fineness ("ley 750" for 18k), gold weight, unit value before VAT, VAT, total | Art. 617 f); prices include VAT, so each line is split into base + 19% VAT, which always add up to the price |
+| Each piece: catalog reference, description with size or length, karat (18k only, the store's gold; 24k is too soft to make jewelry), fineness ("ley 750" for 18k), gold weight, unit value before VAT, VAT, total | Art. 617 f); prices include VAT, so each line is split into base + 19% VAT, which always add up to the price |
 | Subtotal, VAT, total, and the total in words ("TRES MILLONES DE PESOS M/CTE") | Art. 617 g) |
 | Lifetime warranty on the gold (karat and weight), plus the legal warranty of Ley 1480 de 2011 | Store policy; text configurable with `GOLD_WARRANTY_TEXT` |
 | CUFE (SHA-384) and a QR with the document data and the DIAN lookup URL, on every page | Resolución 000165 de 2023, technical annex 11.1.6 and 11.1.7 |
@@ -110,30 +131,36 @@ What the PDF carries, and where the requirement comes from:
 
 ## Demo: one business day
 
-`make demo` wipes the local demo volumes, seeds the synthetic store and drives one day through the API ([`scripts/demo-scenario.sh`](scripts/demo-scenario.sh)). Output from a real run:
+`make demo` wipes the local demo volumes, seeds the catalog and drives one day through the API ([`scripts/demo-scenario.sh`](scripts/demo-scenario.sh)). Output from a real run on 2026-11-01:
 
 ```text
+== Pieces in stock, from the store's catalog (reference, gold weight, price; traceable to their gold lot)
+44 pieces; the first five:
+#1 ANI-SOL-59 Anillo de Dama Solitario · Talla 4, 18k 1.22 g, lot L-00001, $854000
+#2 CAD-45-38 Cadena Tejido Escalera Plana Espejo Oro Amarillo · 45 cm, 18k 2.2 g, lot L-00001, $1672000
+#3 CAN-62 Candongas, 18k 4 g, lot L-00002, $2520000
+...
 == Sell two pieces in cash to a person (CC, email, phone, address)
-invoice FV-000001: base $2521009 + IVA $478991 = $3000000, replayed=false
+invoice FV-000001: base $2835294 + IVA $538706 = $3374000, replayed=false
 == The client retries the same request (network timeout): same invoice, no second sale
-invoice FV-000001: base $2521009 + IVA $478991 = $3000000, replayed=true
+invoice FV-000001: base $2835294 + IVA $538706 = $3374000, replayed=true
 == Same Idempotency-Key with different data (another email) is a conflict, not a replay
 {"error":{"code":"IDEMPOTENCY_KEY_REUSED","message":"Idempotency-Key was already used with different data"}} HTTP 409
 == Sell one piece by card to a company (NIT, card approval number)
-invoice FV-000002: base $1008403 + IVA $191597 = $1200000, replayed=false
+invoice FV-000002: base $358824 + IVA $68176 = $427000, replayed=false
 == A second seller tries to sell a piece that is already sold
 {"error":{"code":"PIECE_NOT_AVAILABLE",...,"details":{"unavailable":[1]}}} HTTP 409
 == Petty cash: transport expense with a photo of the receipt (stored in S3-compatible storage)
 expense #1 $18000 receipt stored=true
 == Close the day with the counted cash
-closed 2026-10-31: expected $2982000, difference $0
+closed 2026-11-01: expected $3356000, difference $0
 == A late sale after closing is rejected
-{"error":{"code":"DAY_CLOSED","message":"Business day 2026-10-31 is already closed"}} HTTP 409
+{"error":{"code":"DAY_CLOSED","message":"Business day 2026-11-01 is already closed"}} HTTP 409
 ```
 
 | Screen | What it shows |
 |---|---|
-| [Sell](docs/screenshots/01-sell-invoices.png) | Pieces with karat and weight; invoice panel with buyer, payment, VAT and total |
+| [Sell](docs/screenshots/01-sell-invoices.png) | Catalog pieces with photo, reference, karat, weight and size; invoice panel with buyer, payment, VAT and total |
 | [Invoice PDF](docs/screenshots/06-invoice-pdf.png) | Graphic representation of FV-000001 |
 | [Inventory](docs/screenshots/02-inventory-gold-lots.png) | Gold lots with remaining grams and cost per gram (the traceability source) |
 | [Petty cash](docs/screenshots/03-petty-cash-receipt.png) | Expense with its receipt photo |
@@ -166,4 +193,4 @@ Highlights:
 
 MIT.
 
-Independent portfolio reconstruction based on engineering patterns from professional work. It uses synthetic data and contains no employer code or confidential information. AI-assisted development tools were used; the implementation was reviewed and verified through tests and CI.
+Independent portfolio reconstruction based on engineering patterns from professional work. It contains no employer code or confidential information. The demo catalog (product names, references, sizes, gold weights, prices and photos) comes from the public catalog of Joyería Yamesi, the business this system was built for; everything else is synthetic. AI-assisted development tools were used; the implementation was reviewed and verified through tests and CI.

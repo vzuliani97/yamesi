@@ -155,7 +155,13 @@ describe('Invoicing', () => {
         });
 
     it('discriminates 19% VAT per line, stores the buyer and issues a CUFE that matches the DIAN formula', async () => {
-      const ring = await createPiece(ctx.pool, adminId, lotId, { price: 1_190_000, goldMg: 3_000, laborCost: 100_000 });
+      const ring = await createPiece(ctx.pool, adminId, lotId, {
+        price: 1_190_000,
+        goldMg: 3_000,
+        laborCost: 100_000,
+        reference: 'AN-DAM-172',
+        size: 'Talla 7',
+      });
       const chain = await createPiece(ctx.pool, adminId, lotId, { price: 1_650_000, goldMg: 5_000, laborCost: 100_000 });
 
       const response = await colombianSale([ring, chain], randomUUID());
@@ -174,8 +180,8 @@ describe('Invoicing', () => {
         total: 2_840_000,
       });
       expect(data.items).toEqual([
-        expect.objectContaining({ taxBase: 1_000_000, vat: 190_000, price: 1_190_000, vatRate: 19 }),
-        expect.objectContaining({ taxBase: 1_386_555, vat: 263_445, price: 1_650_000, vatRate: 19 }),
+        expect.objectContaining({ reference: 'AN-DAM-172', size: 'Talla 7', grams: 3, taxBase: 1_000_000, vat: 190_000, price: 1_190_000 }),
+        expect.objectContaining({ reference: null, taxBase: 1_386_555, vat: 263_445, price: 1_650_000, vatRate: 19 }),
       ]);
 
       // Recompute the CUFE from what was stored: same inputs, same SHA-384, as a DIAN validator would.

@@ -22,6 +22,8 @@ export interface Lot {
 export interface Piece {
   id: number;
   sku: string;
+  reference: string | null;
+  size: string | null;
   name: string;
   category: string;
   lotCode: string;
@@ -37,6 +39,8 @@ export type DocumentType = 'CC' | 'CE' | 'NIT' | 'PP';
 export interface InvoiceItem {
   pieceId: number;
   sku: string;
+  reference: string | null;
+  size: string | null;
   name: string;
   karat: number;
   grams: number;

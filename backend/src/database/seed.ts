@@ -1,9 +1,32 @@
 import bcrypt from 'bcryptjs';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import { Pool } from 'pg';
 import { AppConfig } from '../config';
+import { gramsToMg } from '../common/business-day';
+import { FileStorage } from '../storage/storage.module';
 
-/** Synthetic demo data. Runs only on an empty database, so it never touches real records. */
-export async function seedDemoData(pool: Pool, config: AppConfig): Promise<void> {
+/** A piece from the store's public catalog: reference, name, size, gold weight, price and photo are real. */
+interface CatalogPiece {
+  reference: string;
+  name: string;
+  category: 'ANILLO' | 'CADENA' | 'ARETES' | 'PULSERA' | 'DIJE' | 'OTRO';
+  size: string | null;
+  grams: number;
+  /** Synthetic: workmanship, plus the stones for the two gem rings. */
+  laborCost: number;
+  price: number;
+  photo: string;
+}
+
+// dist/database/seed.js and src/database/seed.ts are both two levels below the backend root.
+const ASSETS = path.resolve(__dirname, '../../demo-assets');
+
+/**
+ * Demo data. Pieces come from the store's catalog; users, gold lots, costs and customers are synthetic.
+ * Runs only on an empty database, so it never touches real records.
+ */
+export async function seedDemoData(pool: Pool, config: AppConfig, storage: FileStorage): Promise<void> {
   const client = await pool.connect();
 
   try {
@@ -34,21 +57,20 @@ export async function seedDemoData(pool: Pool, config: AppConfig): Promise<void>
     );
     const [andina, valle] = lots.map((lot) => lot.id);
 
-    const pieces: Array<[string, string, number, number, number, number]> = [
-      ['Anillo solitario', 'ANILLO', andina, 3500, 180000, 1650000],
-      ['Cadena tejido lazo 50 cm', 'CADENA', andina, 12000, 350000, 5200000],
-      ['Aretes argolla pequeña', 'ARETES', andina, 2800, 150000, 1350000],
-      ['Pulsera esclava', 'PULSERA', andina, 9500, 300000, 4150000],
-      ['Dije corazón', 'DIJE', valle, 2000, 120000, 1200000],
-      ['Anillo de compromiso', 'ANILLO', valle, 4200, 250000, 2600000],
-    ];
+    const catalog = JSON.parse(await readFile(path.join(ASSETS, 'catalog.json'), 'utf8')) as CatalogPiece[];
 
-    for (const [name, category, lotId, goldMg, laborCost, price] of pieces) {
+    for (const [index, piece] of catalog.entries()) {
+      // Every third piece comes from the second lot, so the reports show two lots in use.
+      const lotId = index % 3 === 2 ? valle : andina;
+      const goldMg = gramsToMg(piece.grams);
+      const imageKey = `pieces/catalog/${piece.photo}`;
+      await storage.put(imageKey, await readFile(path.join(ASSETS, 'pieces', piece.photo)), 'image/jpeg');
+
       await client.query('UPDATE gold_lots SET remaining_mg = remaining_mg - $1 WHERE id = $2', [goldMg, lotId]);
       await client.query(
-        `INSERT INTO pieces (name, category, lot_id, gold_mg, labor_cost, price, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [name, category, lotId, goldMg, laborCost, price, adminId],
+        `INSERT INTO pieces (name, reference, size, category, lot_id, gold_mg, labor_cost, price, image_key, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [piece.name, piece.reference, piece.size, piece.category, lotId, goldMg, piece.laborCost, piece.price, imageKey, adminId],
       );
     }
 

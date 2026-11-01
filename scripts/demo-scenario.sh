@@ -18,8 +18,9 @@ token=$(curl -sS -X POST "$api/auth/login" -H 'Content-Type: application/json' \
   -d "{\"email\":\"admin@yamesi.local\",\"password\":\"$password\"}" | jq -r .accessToken)
 auth="Authorization: Bearer $token"
 
-step "Pieces in stock (traceable to their gold lot)"
-curl -sS "$api/pieces?status=IN_STOCK" -H "$auth" | jq -r '.[] | "#\(.id) \(.name), \(.karat)k, lot \(.lotCode), $\(.price)"'
+step "Pieces in stock, from the store's catalog (reference, gold weight, price; traceable to their gold lot)"
+curl -sS "$api/pieces?status=IN_STOCK" -H "$auth" |
+  jq -r '"\(length) pieces; the first five:", (sort_by(.id)[:5][] | "#\(.id) \(.reference) \(.name)\(if .size then " · " + .size else "" end), \(.karat)k \(.grams) g, lot \(.lotCode), $\(.price)")'
 
 step "Sell two pieces in cash to a person (CC, email, phone, address)"
 curl -sS -X POST "$api/invoices" -H "$auth" -H 'Content-Type: application/json' -H 'Idempotency-Key: demo-sale-0001' \

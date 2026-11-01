@@ -57,7 +57,8 @@ export function InventoryPage({ token, user, onUnauthorized }: PageProps) {
               {piece.imageUrl ? <img src={piece.imageUrl} alt={piece.name} /> : <div className="placeholder">{piece.karat}k</div>}
               <strong>{piece.name}</strong>
               <span className="muted">
-                {piece.sku} · lote {piece.lotCode} · {formatGrams(piece.grams)}
+                {piece.reference ?? piece.sku} · lote {piece.lotCode} · {formatGrams(piece.grams)}
+                {piece.size && ` · ${piece.size}`}
               </span>
               <span>
                 {formatCop(piece.price)} · {piece.status === 'SOLD' ? 'Vendida' : 'Disponible'}
@@ -157,7 +158,16 @@ function NewLotForm({ token, onCreated, onUnauthorized }: FormProps) {
 function NewPieceForm({ token, lots, onCreated, onUnauthorized }: FormProps & { lots: Lot[] }) {
   const { busy, message, run } = useSubmit(onUnauthorized);
   const [image, setImage] = useState<File | null>(null);
-  const [form, setForm] = useState({ name: '', category: 'ANILLO', lotId: '', grams: '', laborCost: '', price: '' });
+  const [form, setForm] = useState({
+    name: '',
+    reference: '',
+    size: '',
+    category: 'ANILLO',
+    lotId: '',
+    grams: '',
+    laborCost: '',
+    price: '',
+  });
   const set = (field: keyof typeof form) => (e: { target: { value: string } }) => setForm({ ...form, [field]: e.target.value });
 
   const submit = (event: FormEvent) => {
@@ -168,10 +178,10 @@ function NewPieceForm({ token, lots, onCreated, onUnauthorized }: FormProps & { 
       if (image) data.append('image', image);
 
       const piece = await api<Piece>('/pieces', { method: 'POST', token, body: data });
-      setForm({ ...form, name: '', grams: '', laborCost: '', price: '' });
+      setForm({ ...form, name: '', reference: '', size: '', grams: '', laborCost: '', price: '' });
       setImage(null);
       await onCreated();
-      return `Pieza ${piece.sku} creada.`;
+      return `Pieza ${piece.reference ?? piece.sku} creada.`;
     });
   };
 
@@ -182,6 +192,16 @@ function NewPieceForm({ token, lots, onCreated, onUnauthorized }: FormProps & { 
         Nombre
         <input value={form.name} onChange={set('name')} required minLength={2} />
       </label>
+      <div className="row">
+        <label>
+          Referencia (opcional)
+          <input value={form.reference} onChange={set('reference')} placeholder="AN-DAM-172" pattern="[A-Za-z0-9][A-Za-z0-9-]{1,23}" />
+        </label>
+        <label>
+          Talla o largo (opcional)
+          <input value={form.size} onChange={set('size')} placeholder="Talla 7 o 45 cm" maxLength={24} />
+        </label>
+      </div>
       <label>
         Categoría
         <select value={form.category} onChange={set('category')}>

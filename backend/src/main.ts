@@ -7,6 +7,7 @@ import { APP_CONFIG, AppConfig } from './config';
 import { DatabaseService } from './database/database.service';
 import { runMigrations } from './database/migrate';
 import { seedDemoData } from './database/seed';
+import { FILE_STORAGE, FileStorage } from './storage/storage.module';
 import { configureApp } from './setup';
 
 async function bootstrap(): Promise<void> {
@@ -20,8 +21,11 @@ async function bootstrap(): Promise<void> {
   const applied = await runMigrations(db.pool);
   logger.log(applied.length ? `Applied migrations: ${applied.join(', ')}` : 'Database schema is up to date');
 
+  // Module init creates the storage bucket, which the seed writes piece photos to.
+  await app.init();
+
   if (config.SEED_DEMO_DATA) {
-    await seedDemoData(db.pool, config);
+    await seedDemoData(db.pool, config, app.get<FileStorage>(FILE_STORAGE));
     logger.log('Demo data ready');
   }
 

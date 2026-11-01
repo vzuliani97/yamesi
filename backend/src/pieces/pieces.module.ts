@@ -27,10 +27,21 @@ import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { DatabaseService } from '../database/database.service';
 import { FILE_STORAGE, FileStorage } from '../storage/storage.module';
 
-// Multipart form fields arrive as strings, hence z.coerce.
+// Multipart form fields arrive as strings, hence z.coerce; an empty optional field means "not given".
+const optionalText = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess((value) => (typeof value === 'string' && value.trim() === '' ? undefined : value), schema.optional());
+
 const createPieceSchema = z
   .object({
     name: z.string().trim().min(2).max(120),
+    reference: optionalText(
+      z
+        .string()
+        .trim()
+        .toUpperCase()
+        .regex(/^[A-Z0-9][A-Z0-9-]{1,23}$/, 'Use letters, digits and dashes, as in AN-DAM-172'),
+    ),
+    size: optionalText(z.string().trim().max(24)),
     category: z.enum(['ANILLO', 'CADENA', 'ARETES', 'PULSERA', 'DIJE', 'OTRO']),
     lotId: z.coerce.number().int().positive(),
     grams: z.coerce.number().positive().max(5_000),
@@ -46,6 +57,8 @@ const listQuerySchema = z.object({ status: z.enum(['IN_STOCK', 'SOLD']).optional
 interface PieceRow {
   id: number;
   sku: string;
+  reference: string | null;
+  size: string | null;
   name: string;
   category: string;
   lot_id: number;
@@ -59,7 +72,7 @@ interface PieceRow {
 }
 
 const SELECT_PIECE = `
-  SELECT p.id, p.sku, p.name, p.category, p.lot_id, l.code AS lot_code, l.karat, p.gold_mg,
+  SELECT p.id, p.sku, p.reference, p.size, p.name, p.category, p.lot_id, l.code AS lot_code, l.karat, p.gold_mg,
          p.labor_cost, p.price, p.status, p.image_key
   FROM pieces p JOIN gold_lots l ON l.id = p.lot_id
 `;
@@ -76,6 +89,8 @@ export class PiecesService {
     return {
       id: row.id,
       sku: row.sku,
+      reference: row.reference,
+      size: row.size,
       name: row.name,
       category: row.category,
       lotId: row.lot_id,
@@ -138,12 +153,30 @@ export class PiecesService {
         });
       }
 
-      const { rows } = await client.query<{ id: number }>(
-        `INSERT INTO pieces (name, category, lot_id, gold_mg, labor_cost, price, image_key, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         RETURNING id`,
-        [input.name, input.category, input.lotId, goldMg, input.laborCost, input.price, imageKey, actor.id],
-      );
+      const { rows } = await client
+        .query<{ id: number }>(
+          `INSERT INTO pieces (name, reference, size, category, lot_id, gold_mg, labor_cost, price, image_key, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+           RETURNING id`,
+          [
+            input.name,
+            input.reference ?? null,
+            input.size ?? null,
+            input.category,
+            input.lotId,
+            goldMg,
+            input.laborCost,
+            input.price,
+            imageKey,
+            actor.id,
+          ],
+        )
+        .catch((error: { code?: string; constraint?: string }) => {
+          if (error.code === '23505' && error.constraint === 'pieces_reference_key') {
+            throw new AppError(409, 'REFERENCE_TAKEN', 'Another piece already uses this reference');
+          }
+          throw error;
+        });
 
       await this.audit.record(client, {
         actorId: actor.id,

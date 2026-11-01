@@ -54,6 +54,8 @@ interface InvoiceRow {
 interface ItemRow {
   piece_id: number;
   sku: string;
+  reference: string | null;
+  size: string | null;
   name: string;
   karat: number;
   gold_mg: number;
@@ -155,9 +157,9 @@ export class InvoicesService {
         `WITH sold AS (
            UPDATE pieces SET status = 'SOLD'
            WHERE id = ANY($1::int[]) AND status = 'IN_STOCK'
-           RETURNING id, sku, name, lot_id, gold_mg, labor_cost, price
+           RETURNING id, sku, reference, size, name, lot_id, gold_mg, labor_cost, price
          )
-         SELECT s.id AS piece_id, s.sku, s.name, l.karat, s.gold_mg, s.price,
+         SELECT s.id AS piece_id, s.sku, s.reference, s.size, s.name, l.karat, s.gold_mg, s.price,
                 (ROUND(s.gold_mg::numeric * l.cost_per_gram / 1000) + s.labor_cost)::int AS cost
          FROM sold s JOIN gold_lots l ON l.id = s.lot_id
          ORDER BY s.id`,
@@ -353,7 +355,7 @@ export class InvoicesService {
 
   private async items(invoiceId: string) {
     const { rows } = await this.db.query<ItemRow>(
-      `SELECT ii.piece_id, p.sku, p.name, l.karat, p.gold_mg, ii.price, ii.cost, ii.vat_rate, ii.tax_base, ii.vat
+      `SELECT ii.piece_id, p.sku, p.reference, p.size, p.name, l.karat, p.gold_mg, ii.price, ii.cost, ii.vat_rate, ii.tax_base, ii.vat
        FROM invoice_items ii
        JOIN pieces p ON p.id = ii.piece_id
        JOIN gold_lots l ON l.id = p.lot_id
@@ -364,6 +366,8 @@ export class InvoicesService {
     return rows.map((row) => ({
       pieceId: row.piece_id,
       sku: row.sku,
+      reference: row.reference,
+      size: row.size,
       name: row.name,
       karat: row.karat,
       grams: mgToGrams(row.gold_mg),

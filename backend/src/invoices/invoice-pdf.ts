@@ -6,6 +6,8 @@ import { CufeInput, qrContent } from './cufe';
 
 export interface InvoicePdfItem {
   sku: string;
+  reference: string | null;
+  size: string | null;
   name: string;
   karat: number;
   grams: number;
@@ -187,8 +189,8 @@ export function renderInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
     // ---- Items table ----
     const cols = [
       { title: '#', x: 40, w: 18, align: 'left' as const },
-      { title: 'Código', x: 60, w: 54, align: 'left' as const },
-      { title: 'Descripción', x: 116, w: 196, align: 'left' as const },
+      { title: 'Referencia', x: 60, w: 68, align: 'left' as const },
+      { title: 'Descripción', x: 130, w: 182, align: 'left' as const },
       { title: 'Cant.', x: 314, w: 28, align: 'center' as const },
       { title: 'Valor unitario', x: 344, w: 76, align: 'right' as const },
       { title: `IVA ${c.VAT_RATE_PERCENT} %`, x: 422, w: 70, align: 'right' as const },
@@ -213,7 +215,7 @@ export function renderInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
       if (index % 2 === 1) doc.rect(PAGE.left, y, PAGE.width, rowHeight).fill(COLOR.zebra);
       const cells = [
         String(index + 1),
-        item.sku,
+        item.reference ?? item.sku,
         null,
         '1',
         cop.format(item.taxBase),
@@ -222,9 +224,10 @@ export function renderInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
       ];
       doc.font('Helvetica').fontSize(8.5).fillColor(COLOR.ink);
       cells.forEach((value, i) => {
-        if (value !== null) doc.text(value, cols[i].x + 3, y + 7, { width: cols[i].w - 6, align: cols[i].align });
+        if (value !== null) doc.text(value, cols[i].x + 3, y + 7, { width: cols[i].w - 6, align: cols[i].align, lineBreak: false, ellipsis: true });
       });
-      doc.font('Helvetica-Bold').fontSize(8.5).text(item.name, cols[2].x + 3, y + 5, { width: cols[2].w - 6, lineBreak: false, ellipsis: true });
+      const description = item.size ? `${item.name} · ${item.size}` : item.name;
+      doc.font('Helvetica-Bold').fontSize(8.5).text(description, cols[2].x + 3, y + 5, { width: cols[2].w - 6, lineBreak: false, ellipsis: true });
       doc.font('Helvetica').fontSize(7.5).fillColor(COLOR.muted)
         .text(`Oro ${item.karat}k · ley ${fineness(item.karat)} · ${grams.format(item.grams)} g`, cols[2].x + 3, y + 17, { width: cols[2].w - 6 });
       doc.moveTo(PAGE.left, y + rowHeight).lineTo(PAGE.right, y + rowHeight).lineWidth(0.5).strokeColor(COLOR.line).stroke();

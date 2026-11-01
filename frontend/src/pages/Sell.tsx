@@ -38,7 +38,7 @@ export function SellPage({ token, onUnauthorized }: PageProps) {
   };
 
   const available = (pieces.data ?? []).filter((piece) =>
-    `${piece.name} ${piece.sku} ${piece.karat}k`.toLowerCase().includes(query.trim().toLowerCase()),
+    `${piece.name} ${piece.reference ?? ''} ${piece.sku} ${piece.size ?? ''} ${piece.karat}k`.toLowerCase().includes(query.trim().toLowerCase()),
   );
   const cart = (pieces.data ?? []).filter((piece) => selected.includes(piece.id));
   const total = cart.reduce((sum, piece) => sum + piece.price, 0);
@@ -97,7 +97,7 @@ export function SellPage({ token, onUnauthorized }: PageProps) {
           <input
             className="search"
             type="search"
-            placeholder="Buscar pieza, código o kilataje"
+            placeholder="Buscar por nombre, referencia o talla"
             aria-label="Buscar piezas"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -110,7 +110,8 @@ export function SellPage({ token, onUnauthorized }: PageProps) {
                 {piece.imageUrl ? <img src={piece.imageUrl} alt={piece.name} /> : <div className="placeholder">{piece.karat}k</div>}
                 <strong>{piece.name}</strong>
                 <span className="muted">
-                  {piece.sku} · {piece.karat}k · {formatGrams(piece.grams)}
+                  {piece.reference ?? piece.sku} · {piece.karat}k · {formatGrams(piece.grams)}
+                  {piece.size && ` · ${piece.size}`}
                 </span>
                 <span className="price">{formatCop(piece.price)}</span>
               </label>
@@ -213,7 +214,7 @@ export function SellPage({ token, onUnauthorized }: PageProps) {
             {cart.map((piece) => (
               <div key={piece.id} className="summary-line item">
                 <span>
-                  {piece.name} · {piece.karat}k · {formatGrams(piece.grams)}
+                  {piece.name} · {piece.reference ?? piece.sku} · {formatGrams(piece.grams)}
                 </span>
                 <span>{formatCop(piece.price)}</span>
               </div>

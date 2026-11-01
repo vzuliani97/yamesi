@@ -68,18 +68,30 @@ describe('Gold lots and pieces', () => {
       .expect(403);
   });
 
-  it('creates a piece with a photo and consumes gold from its lot', async () => {
+  it('creates a piece with a photo, catalog reference and size, and consumes gold from its lot', async () => {
     const lotId = await createLot(ctx.pool, adminId, { grams: 50 });
+    const fields = { name: 'Anillo', category: 'ANILLO', lotId, grams: 3.25, laborCost: 120_000, price: 1_400_000 };
 
     const response = await createPieceRequest(
-      { name: 'Anillo', category: 'ANILLO', lotId, grams: 3.25, laborCost: 120_000, price: 1_400_000 },
+      { ...fields, reference: 'an-dam-172', size: 'Talla 7' },
       { body: TINY_PNG, type: 'image/png' },
     );
 
     expect(response.status).toBe(201);
-    expect(response.body).toMatchObject({ sku: 'P-00001', grams: 3.25, status: 'IN_STOCK', karat: 18 });
+    expect(response.body).toMatchObject({ sku: 'P-00001', reference: 'AN-DAM-172', size: 'Talla 7', grams: 3.25, status: 'IN_STOCK', karat: 18 });
     expect(response.body.imageUrl).toMatch(/^memory:\/\/pieces\/.+\.png$/);
     expect(await remainingMg(lotId)).toBe(50_000 - 3_250);
+
+    // A reference identifies one piece; the rejected request rolls back and leaves the lot untouched.
+    const duplicate = await createPieceRequest({ ...fields, reference: 'AN-DAM-172' });
+    expect(duplicate.status).toBe(409);
+    expect(duplicate.body.error.code).toBe('REFERENCE_TAKEN');
+    expect(await remainingMg(lotId)).toBe(50_000 - 3_250);
+
+    // Empty optional form fields mean "no reference", so pieces without one do not collide.
+    const plain = await createPieceRequest({ ...fields, reference: '', size: '' });
+    expect(plain.status).toBe(201);
+    expect(plain.body).toMatchObject({ reference: null, size: null });
   });
 
   it('refuses to use more gold than the lot has left', async () => {
