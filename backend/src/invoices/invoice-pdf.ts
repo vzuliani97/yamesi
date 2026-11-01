@@ -75,9 +75,35 @@ const nitLabel = (nit: string) => {
   return `${body.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}-${checkDigit}`;
 };
 
+/**
+ * Draws the QR as vector squares from its module matrix. Embedding a PNG made PDFKit decode it in pure
+ * JavaScript on every invoice (about 300 ms); vectors are faster and print sharper. Runs of dark modules
+ * in a row become one rectangle, and everything is filled as a single path.
+ */
+function drawQr(doc: PDFKit.PDFDocument, modules: { size: number; get(row: number, col: number): number | boolean }, x: number, y: number, size: number) {
+  const n = modules.size;
+  const cell = size / (n + 2); // one-module quiet zone on each side
+  doc.save().rect(x, y, size, size).fill('#ffffff').fillColor('#000000');
+  for (let row = 0; row < n; row += 1) {
+    let col = 0;
+    while (col < n) {
+      if (!modules.get(row, col)) {
+        col += 1;
+        continue;
+      }
+      let end = col;
+      while (end + 1 < n && modules.get(row, end + 1)) end += 1;
+      // A hair of overlap avoids hairline gaps between rows in some PDF viewers.
+      doc.rect(x + (col + 1) * cell, y + (row + 1) * cell, (end - col + 1) * cell + 0.05, cell + 0.05);
+      col = end + 1;
+    }
+  }
+  doc.fill().restore();
+}
+
 /** Renders the graphic representation of the sales invoice. Every page carries the QR and the CUFE, as the DIAN annex requires. */
-export async function renderInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
-  const qr = await QRCode.toBuffer(qrContent(data.cufeInput, data.cufe, '0.00'), { margin: 1, width: 300, errorCorrectionLevel: 'M' });
+export function renderInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
+  const qr = QRCode.create(qrContent(data.cufeInput, data.cufe, '0.00'), { errorCorrectionLevel: 'M' });
 
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
@@ -246,7 +272,7 @@ export async function renderInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
       doc.switchToPage(i);
       const top = PAGE.footerTop;
       doc.moveTo(PAGE.left, top).lineTo(PAGE.right, top).lineWidth(0.75).strokeColor(COLOR.line).stroke();
-      doc.image(qr, PAGE.left, top + 10, { width: 86, height: 86 });
+      drawQr(doc, qr.modules, PAGE.left, top + 10, 86);
       const textX = PAGE.left + 100;
       doc.fillColor(COLOR.muted).font('Helvetica-Bold').fontSize(7).text('CUFE', textX, top + 12);
       doc.fillColor(COLOR.ink).font('Courier').fontSize(7).text(data.cufe, textX, top + 22, { width: PAGE.width - 100 });
