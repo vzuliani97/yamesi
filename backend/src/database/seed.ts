@@ -17,6 +17,8 @@ interface CatalogPiece {
   laborCost: number;
   price: number;
   photo: string;
+  /** Registered by `scripts/demo-scenario.sh` through the inventory API instead of the seed. */
+  arrivesDuringDemo?: boolean;
 }
 
 // dist/database/seed.js and src/database/seed.ts are both two levels below the backend root.
@@ -59,7 +61,7 @@ export async function seedDemoData(pool: Pool, config: AppConfig, storage: FileS
 
     const catalog = JSON.parse(await readFile(path.join(ASSETS, 'catalog.json'), 'utf8')) as CatalogPiece[];
 
-    for (const [index, piece] of catalog.entries()) {
+    for (const [index, piece] of catalog.filter((entry) => !entry.arrivesDuringDemo).entries()) {
       // Every third piece comes from the second lot, so the reports show two lots in use.
       const lotId = index % 3 === 2 ? valle : andina;
       const goldMg = gramsToMg(piece.grams);

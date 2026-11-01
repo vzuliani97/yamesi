@@ -7,7 +7,9 @@ import {
   Module,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
+  Put,
   Query,
   UploadedFile,
   UseGuards,
@@ -15,6 +17,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { randomUUID } from 'node:crypto';
+import { PoolClient } from 'pg';
 import { z } from 'zod';
 import { AuditService } from '../audit/audit.module';
 import { CurrentUser, Roles } from '../auth/auth.decorators';
@@ -31,18 +34,20 @@ import { FILE_STORAGE, FileStorage } from '../storage/storage.module';
 const optionalText = <T extends z.ZodTypeAny>(schema: T) =>
   z.preprocess((value) => (typeof value === 'string' && value.trim() === '' ? undefined : value), schema.optional());
 
+const referenceSchema = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(/^[A-Z0-9][A-Z0-9-]{1,23}$/, 'Use letters, digits and dashes, as in AN-DAM-172');
+const sizeSchema = z.string().trim().min(1).max(24);
+const categorySchema = z.enum(['ANILLO', 'CADENA', 'ARETES', 'PULSERA', 'DIJE', 'OTRO']);
+
 const createPieceSchema = z
   .object({
     name: z.string().trim().min(2).max(120),
-    reference: optionalText(
-      z
-        .string()
-        .trim()
-        .toUpperCase()
-        .regex(/^[A-Z0-9][A-Z0-9-]{1,23}$/, 'Use letters, digits and dashes, as in AN-DAM-172'),
-    ),
-    size: optionalText(z.string().trim().max(24)),
-    category: z.enum(['ANILLO', 'CADENA', 'ARETES', 'PULSERA', 'DIJE', 'OTRO']),
+    reference: optionalText(referenceSchema),
+    size: optionalText(sizeSchema),
+    category: categorySchema,
     lotId: z.coerce.number().int().positive(),
     grams: z.coerce.number().positive().max(5_000),
     laborCost: z.coerce.number().int().min(0).max(100_000_000),
@@ -51,6 +56,38 @@ const createPieceSchema = z
   .strict();
 
 type CreatePieceInput = z.infer<typeof createPieceSchema>;
+
+// Catalog fields only. Gold weight and lot are fixed once the gold is consumed; null clears an optional field.
+const updatePieceSchema = z
+  .object({
+    name: z.string().trim().min(2).max(120),
+    reference: referenceSchema.nullable(),
+    size: sizeSchema.nullable(),
+    category: categorySchema,
+    laborCost: z.number().int().min(0).max(100_000_000),
+    price: z.number().int().positive().max(1_000_000_000),
+  })
+  .partial()
+  .strict()
+  .refine((fields) => Object.keys(fields).length > 0, 'Send at least one field to change');
+
+type UpdatePieceInput = z.infer<typeof updatePieceSchema>;
+
+const UPDATE_COLUMNS: Record<keyof UpdatePieceInput, string> = {
+  name: 'name',
+  reference: 'reference',
+  size: 'size',
+  category: 'category',
+  laborCost: 'labor_cost',
+  price: 'price',
+};
+
+const referenceTaken = (error: { code?: string; constraint?: string }) => {
+  if (error.code === '23505' && error.constraint === 'pieces_reference_key') {
+    throw new AppError(409, 'REFERENCE_TAKEN', 'Another piece already uses this reference');
+  }
+  throw error;
+};
 
 const listQuerySchema = z.object({ status: z.enum(['IN_STOCK', 'SOLD']).optional() });
 
@@ -171,12 +208,7 @@ export class PiecesService {
             actor.id,
           ],
         )
-        .catch((error: { code?: string; constraint?: string }) => {
-          if (error.code === '23505' && error.constraint === 'pieces_reference_key') {
-            throw new AppError(409, 'REFERENCE_TAKEN', 'Another piece already uses this reference');
-          }
-          throw error;
-        });
+        .catch(referenceTaken);
 
       await this.audit.record(client, {
         actorId: actor.id,
@@ -190,6 +222,62 @@ export class PiecesService {
     });
 
     return this.get(id);
+  }
+
+  /** Edits the catalog fields of a piece still in stock. A sold piece is part of an invoice and stays as it was. */
+  async update(id: number, input: UpdatePieceInput, actor: AuthUser) {
+    await this.db.transaction(async (client) => {
+      const before = await this.lockInStock(client, id);
+      const fields = Object.keys(input) as Array<keyof UpdatePieceInput>;
+      const assignments = fields.map((field, index) => `${UPDATE_COLUMNS[field]} = $${index + 2}`);
+      await client
+        .query(`UPDATE pieces SET ${assignments.join(', ')} WHERE id = $1`, [id, ...fields.map((field) => input[field])])
+        .catch(referenceTaken);
+
+      await this.audit.record(client, {
+        actorId: actor.id,
+        action: 'PIECE_UPDATED',
+        entity: 'piece',
+        entityId: id,
+        data: { before: Object.fromEntries(fields.map((field) => [field, before[UPDATE_COLUMNS[field]]])), after: input },
+      });
+    });
+    return this.get(id);
+  }
+
+  /** Replaces the photo of a piece in stock. The previous object stays in the bucket for a lifecycle rule to expire. */
+  async replacePhoto(id: number, image: Express.Multer.File | undefined, actor: AuthUser) {
+    if (!image) {
+      throw new AppError(400, 'IMAGE_REQUIRED', 'Attach the photo in the "image" field');
+    }
+    const type = requireImage(image);
+    await this.get(id);
+    const imageKey = `pieces/${randomUUID()}.${type.extension}`;
+    await this.storage.put(imageKey, image.buffer, type.contentType);
+
+    await this.db.transaction(async (client) => {
+      const before = await this.lockInStock(client, id);
+      await client.query('UPDATE pieces SET image_key = $2 WHERE id = $1', [id, imageKey]);
+      await this.audit.record(client, {
+        actorId: actor.id,
+        action: 'PIECE_PHOTO_CHANGED',
+        entity: 'piece',
+        entityId: id,
+        data: { before: before.image_key, after: imageKey },
+      });
+    });
+    return this.get(id);
+  }
+
+  private async lockInStock(client: PoolClient, id: number) {
+    const { rows } = await client.query<Record<string, unknown>>('SELECT * FROM pieces WHERE id = $1 FOR UPDATE', [id]);
+    if (rows.length === 0) {
+      throw new AppError(404, 'PIECE_NOT_FOUND', 'Piece not found');
+    }
+    if (rows[0].status !== 'IN_STOCK') {
+      throw new AppError(409, 'PIECE_SOLD', 'A sold piece is part of an invoice and cannot be changed');
+    }
+    return rows[0];
   }
 }
 
@@ -217,6 +305,27 @@ export class PiecesController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.pieces.create(body, image, user);
+  }
+
+  @Patch(':id')
+  @Roles('ADMIN')
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body(new ZodValidationPipe(updatePieceSchema)) body: UpdatePieceInput,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.pieces.update(id, body, user);
+  }
+
+  @Put(':id/photo')
+  @Roles('ADMIN')
+  @UseInterceptors(FileInterceptor('image', { limits: { fileSize: MAX_IMAGE_BYTES, files: 1 } }))
+  replacePhoto(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() image: Express.Multer.File | undefined,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.pieces.replacePhoto(id, image, user);
   }
 }
 

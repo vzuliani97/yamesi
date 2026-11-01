@@ -117,6 +117,55 @@ describe('Gold lots and pieces', () => {
     expect(await remainingMg(lotId)).toBe(50_000);
   });
 
+  it('lets an admin edit a piece in stock, audits the change, and keeps sold pieces as invoiced', async () => {
+    const lotId = await createLot(ctx.pool, adminId, { grams: 50 });
+    const piece = await createPiece(ctx.pool, adminId, lotId, { price: 900_000, reference: 'AN-DAM-170' });
+    await createPiece(ctx.pool, adminId, lotId, { reference: 'AN-DAM-171' });
+    const edit = (id: number, body: object, token = adminToken) =>
+      ctx.http().patch(`/api/pieces/${id}`).set('Authorization', `Bearer ${token}`).send(body);
+
+    const response = await edit(piece, { price: 945_000, size: 'Talla 7', name: 'Anillo Dama' });
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ price: 945_000, size: 'Talla 7', name: 'Anillo Dama', reference: 'AN-DAM-170', grams: 2 });
+
+    const { rows } = await ctx.pool.query("SELECT data FROM audit_log WHERE action = 'PIECE_UPDATED' AND entity_id = $1", [String(piece)]);
+    expect(rows[0].data).toEqual({
+      before: { price: 900_000, size: null, name: 'Pieza de prueba' },
+      after: { price: 945_000, size: 'Talla 7', name: 'Anillo Dama' },
+    });
+
+    expect((await edit(piece, { reference: 'an-dam-171' })).body.error.code).toBe('REFERENCE_TAKEN');
+    expect((await edit(piece, { grams: 9 })).status).toBe(400);
+    expect((await edit(piece, {})).status).toBe(400);
+    expect((await edit(piece, { price: 1 }, sellerToken)).status).toBe(403);
+
+    await ctx.pool.query("UPDATE pieces SET status = 'SOLD' WHERE id = $1", [piece]);
+    const sold = await edit(piece, { price: 1_000_000 });
+    expect(sold.status).toBe(409);
+    expect(sold.body.error.code).toBe('PIECE_SOLD');
+  });
+
+  it('replaces the photo of a piece and refuses a file that is not an image', async () => {
+    const lotId = await createLot(ctx.pool, adminId, { grams: 50 });
+    const piece = await createPiece(ctx.pool, adminId, lotId);
+    const upload = (body: Buffer) =>
+      ctx
+        .http()
+        .put(`/api/pieces/${piece}/photo`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .attach('image', body, { filename: 'foto.png', contentType: 'image/png' });
+
+    const response = await upload(TINY_PNG);
+    expect(response.status).toBe(200);
+    expect(response.body.imageUrl).toMatch(/^memory:\/\/pieces\/.+\.png$/);
+
+    const fake = await upload(Buffer.from('<svg onload="alert(1)"> padding padding'));
+    expect(fake.status).toBe(400);
+    expect(fake.body.error.code).toBe('INVALID_IMAGE');
+    const after = await ctx.http().get(`/api/pieces/${piece}`).set('Authorization', `Bearer ${adminToken}`);
+    expect(after.body.imageUrl).toBe(response.body.imageUrl);
+  });
+
   it('reports gold by karat across lots, stock and sales', async () => {
     const lot18 = await createLot(ctx.pool, adminId, { karat: 18, grams: 100, costPerGram: 300_000 });
     const lot18b = await createLot(ctx.pool, adminId, { karat: 18, grams: 20, costPerGram: 400_000 });

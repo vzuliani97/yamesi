@@ -86,8 +86,8 @@ export function PettyCashPage({ token, onUnauthorized }: PageProps) {
                 <td>{formatCop(e.amount)}</td>
                 <td>
                   {e.receiptUrl ? (
-                    <a href={e.receiptUrl} target="_blank" rel="noreferrer">
-                      Recibo
+                    <a href={e.receiptUrl} target="_blank" rel="noreferrer" className="receipt-thumb">
+                      <img src={e.receiptUrl} alt={`Recibo: ${e.description}`} />
                     </a>
                   ) : (
                     '—'
@@ -99,6 +99,26 @@ export function PettyCashPage({ token, onUnauthorized }: PageProps) {
         </table>
         {expenses.data?.length === 0 && <p className="muted">Sin gastos hoy.</p>}
       </section>
+
+      {(expenses.data ?? []).some((e) => e.receiptUrl) && (
+        <section className="card wide">
+          <h2>Recibos del día</h2>
+          <div className="receipts">
+            {(expenses.data ?? [])
+              .filter((e) => e.receiptUrl)
+              .map((e) => (
+                <figure key={e.id}>
+                  <a href={e.receiptUrl!} target="_blank" rel="noreferrer">
+                    <img src={e.receiptUrl!} alt={`Recibo: ${e.description}`} loading="lazy" />
+                  </a>
+                  <figcaption>
+                    {e.description} · {formatCop(e.amount)}
+                  </figcaption>
+                </figure>
+              ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

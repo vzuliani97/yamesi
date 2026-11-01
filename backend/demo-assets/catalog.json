@@ -407,7 +407,8 @@
     "grams": 0.6,
     "laborCost": 36000,
     "price": 420000,
-    "photo": "dij-var-140.jpg"
+    "photo": "dij-var-140.jpg",
+    "arrivesDuringDemo": true
   },
   {
     "reference": "CAD-60-38",
@@ -417,7 +418,8 @@
     "grams": 1.4,
     "laborCost": 84000,
     "price": 1064000,
-    "photo": "cad-60-38.jpg"
+    "photo": "cad-60-38.jpg",
+    "arrivesDuringDemo": true
   },
   {
     "reference": "PUL-58",
@@ -427,7 +429,8 @@
     "grams": 2.22,
     "laborCost": 133000,
     "price": 1420800,
-    "photo": "pul-58.jpg"
+    "photo": "pul-58.jpg",
+    "arrivesDuringDemo": true
   },
   {
     "reference": "TOP-ANI-36",
@@ -437,6 +440,7 @@
     "grams": 0.8,
     "laborCost": 48000,
     "price": 536000,
-    "photo": "top-ani-36.jpg"
+    "photo": "top-ani-36.jpg",
+    "arrivesDuringDemo": true
   }
 ]

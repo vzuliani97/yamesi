@@ -101,7 +101,7 @@ export class ApiError extends Error {
 }
 
 interface RequestOptions {
-  method?: 'GET' | 'POST';
+  method?: 'GET' | 'POST' | 'PATCH' | 'PUT';
   body?: unknown;
   token?: string;
   headers?: Record<string, string>;

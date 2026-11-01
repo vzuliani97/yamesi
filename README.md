@@ -16,7 +16,7 @@ A jewelry counter sells 18k gold pieces whose value depends on their weight. The
 | Who | What they do here |
 |---|---|
 | Seller | Finds a piece by name, catalog reference or size, adds it to the sale, enters the buyer and payment, and issues the invoice PDF |
-| Administrator | Registers gold lots and pieces with photos, records petty-cash expenses with a receipt photo, closes the day, reads margins and the audit trail |
+| Administrator | Keeps the catalog current in the inventory portal (new pieces, prices, sizes, photos), registers gold lots, records petty-cash expenses with a receipt photo, closes the day, reads margins and the audit trail |
 | Owner | Asks the optional local AI assistant questions like "how much did we sell today?" without anyone writing a report |
 
 ## What I built
@@ -26,9 +26,9 @@ Everything in this repository, end to end:
 - **Data model and migrations:** gold lots in integer milligrams, pieces that consume gold from their lot, gap-free invoice numbering, VAT split per line, petty cash, daily closings and an audit log, all in plain versioned SQL with database constraints as the last line of defense.
 - **API (NestJS):** authentication with roles, Zod validation on every input, idempotent invoices, row and advisory locks for concurrency, safe image uploads to S3 and a uniform `{error:{code,message}}` format.
 - **Colombian invoice:** the PDF layout, CUFE with SHA-384 checked against the DIAN's official example, the QR, the total in words and the lifetime gold warranty.
-- **Frontend (React):** the point of sale with catalog photos, the invoice panel, inventory, petty cash, closing, reports and the assistant screen.
+- **Frontend (React):** the point of sale with catalog photos, the invoice panel, the inventory portal with photo upload, petty cash with receipt photos, closing, reports and the assistant screen.
 - **AI assistant:** a local model (Ollama) limited to five read-only aggregate tools, with an evaluation of its answers.
-- **Delivery and quality:** Docker Compose for the whole stack, non-root containers, a scripted business day (`make demo`), 51 automated tests and CI with CodeQL, Gitleaks and `npm audit`.
+- **Delivery and quality:** Docker Compose for the whole stack, non-root containers, a scripted business day (`make demo`), 53 automated tests and CI with CodeQL, Gitleaks and `npm audit`.
 
 ## What it solves
 
@@ -38,6 +38,7 @@ Everything in this repository, end to end:
 | A Colombian sales invoice with everything the law asks for | Issuer and buyer identification, DIAN numbering resolution, 19% VAT per line, payment, amount in words, gold karat, fineness and weight, a lifetime gold warranty, CUFE and QR (see below) |
 | Consecutive invoice numbers with no gaps | A counter incremented **inside** the invoice transaction. A PostgreSQL `SEQUENCE` leaves gaps on rollback. |
 | Never sell the same piece twice | Pieces locked in a fixed order, sold all-or-nothing, and `UNIQUE (piece_id)` on invoice lines |
+| Keep the catalog up to date | **Inventory portal:** search and filter the catalog, edit a piece in stock (name, reference, size, category, price) and replace its photo by drag and drop. Every change goes to the audit log with its old value; sold pieces are locked because they belong to an invoice. |
 | Replace paper petty-cash receipts | Expenses with a category and a **photo of the receipt** stored in S3 |
 | Balance the cash drawer every day | Expected cash = opening + cash sales − expenses. Closing records the difference and **locks the day**. |
 | Know the real margin | Each piece's cost (gold at its lot price + labor) is **frozen at sale time** |
@@ -51,7 +52,7 @@ Everything in this repository, end to end:
 - **Frontend:** React 19 + TypeScript (Vite), unprivileged nginx
 - **AI (optional):** Qwen2.5 3B via Ollama, with tool calling
 - **Invoice:** PDFKit and `qrcode`, CUFE with SHA-384 as defined by the DIAN
-- **Quality:** Jest + Supertest, 51 tests (22 unit, 27 integration against PostgreSQL, 2 against a real S3 server), CodeQL, Gitleaks, `npm audit`, Dependabot
+- **Quality:** Jest + Supertest, 53 tests (22 unit, 29 integration against PostgreSQL, 2 against a real S3 server), CodeQL, Gitleaks, `npm audit`, Dependabot
 
 ## Architecture
 
@@ -131,39 +132,50 @@ What the PDF carries, and where the requirement comes from:
 
 ## Demo: one business day
 
-`make demo` wipes the local demo volumes, seeds the catalog and drives one day through the API ([`scripts/demo-scenario.sh`](scripts/demo-scenario.sh)). Output from a real run on 2026-11-01:
+`make demo` wipes the local demo volumes, seeds the catalog and simulates one business day through the API ([`scripts/demo-scenario.sh`](scripts/demo-scenario.sh)): new pieces arrive with their photos, a price changes, five sales use every payment method, a sale is retried, four petty-cash expenses are recorded with their receipt photos (fictitious receipts in [`scripts/demo-receipts/`](scripts/demo-receipts/)), and the day is closed. Output from a real run on 2026-11-01, shortened:
 
 ```text
-== Pieces in stock, from the store's catalog (reference, gold weight, price; traceable to their gold lot)
-44 pieces; the first five:
-#1 ANI-SOL-59 Anillo de Dama Solitario · Talla 4, 18k 1.22 g, lot L-00001, $854000
-#2 CAD-45-38 Cadena Tejido Escalera Plana Espejo Oro Amarillo · 45 cm, 18k 2.2 g, lot L-00001, $1672000
-#3 CAN-62 Candongas, 18k 4 g, lot L-00002, $2520000
+== New pieces arrive: registered through the inventory portal with their photos (gold taken from lot L-00001)
+#41 DIJ-VAR-140 Dije Trébol Diamantado Troquelado, 0.6 g, $420000, photo=true
+#42 CAD-60-38 Cadena Tejido Escalera Diamantada, 1.4 g, $1064000, photo=true
 ...
+== A price changes in the portal (10% off the solitaire ring); the audit log keeps the old value
+#18 ANI-SOL-58 Anillo Solitario Dama: now $882000
 == Sell two pieces in cash to a person (CC, email, phone, address)
-invoice FV-000001: base $2835294 + IVA $538706 = $3374000, replayed=false
+invoice FV-000001 CASH: base $2835294 + IVA $538706 = $3374000, replayed=false
 == The client retries the same request (network timeout): same invoice, no second sale
-invoice FV-000001: base $2835294 + IVA $538706 = $3374000, replayed=true
+invoice FV-000001 CASH: base $2835294 + IVA $538706 = $3374000, replayed=true
 == Same Idempotency-Key with different data (another email) is a conflict, not a replay
 {"error":{"code":"IDEMPOTENCY_KEY_REUSED","message":"Idempotency-Key was already used with different data"}} HTTP 409
 == Sell one piece by card to a company (NIT, card approval number)
-invoice FV-000002: base $358824 + IVA $68176 = $427000, replayed=false
+invoice FV-000002 CARD: base $358824 + IVA $68176 = $427000, replayed=false
+== Sell a ring and a chain by bank transfer, with the transfer reference
+invoice FV-000003 TRANSFER: base $1250168 + IVA $237532 = $1487700, replayed=false
+== Sell earrings in cash to a final consumer (no document: 222222222222 in the CUFE)
+invoice FV-000004 CASH: base $596639 + IVA $113361 = $710000, replayed=false
+== Sell the discounted ring by card
+invoice FV-000005 CARD: base $741176 + IVA $140824 = $882000, replayed=false
 == A second seller tries to sell a piece that is already sold
 {"error":{"code":"PIECE_NOT_AVAILABLE",...,"details":{"unavailable":[1]}}} HTTP 409
-== Petty cash: transport expense with a photo of the receipt (stored in S3-compatible storage)
-expense #1 $18000 receipt stored=true
+== Petty cash: four expenses, each with a photo of its receipt (stored in S3-compatible storage)
+expense #1 TRANSPORTE $18000 receipt stored=true
+...
+expense #4 MANTENIMIENTO $50000 receipt stored=true
 == Close the day with the counted cash
-closed 2026-11-01: expected $3356000, difference $0
+closed 2026-11-01: expected $3942500, difference $0
 == A late sale after closing is rejected
 {"error":{"code":"DAY_CLOSED","message":"Business day 2026-11-01 is already closed"}} HTTP 409
 ```
+
+After the run, the reports show 5 invoices, COP 5,782,101 in sales without VAT and a gross margin of COP 1,620,001 (28%), with synthetic costs.
 
 | Screen | What it shows |
 |---|---|
 | [Sell](docs/screenshots/01-sell-invoices.png) | Catalog pieces with photo, reference, karat, weight and size; invoice panel with buyer, payment, VAT and total |
 | [Invoice PDF](docs/screenshots/06-invoice-pdf.png) | Graphic representation of FV-000001 |
-| [Inventory](docs/screenshots/02-inventory-gold-lots.png) | Gold lots with remaining grams and cost per gram (the traceability source) |
-| [Petty cash](docs/screenshots/03-petty-cash-receipt.png) | Expense with its receipt photo |
+| [Inventory portal](docs/screenshots/02-inventory-gold-lots.png) | The catalog with photos, stock value and gold in the showcase, search and filters |
+| [Edit a piece](docs/screenshots/07-inventory-edit-piece.png) | Change the price, size or reference and drop in a new photo; weight and lot stay fixed |
+| [Petty cash](docs/screenshots/03-petty-cash-receipt.png) | The day's expenses with their receipt photos |
 | [Closing](docs/screenshots/04-day-closing.png) | Expected versus counted cash; the day is locked |
 | [Reports](docs/screenshots/05-reports-audit.png) | Gold by karat, gross margin without VAT, and the audit trail of every step above |
 
@@ -175,6 +187,7 @@ make test                 # in containers, with a disposable PostgreSQL and Rust
 
 Highlights:
 - **Colombian invoice:** the CUFE matches the official DIAN example; VAT base + VAT always equals the price; amounts in words; a stored CUFE is recomputed from its inputs; idempotency covers every invoice field; the DIAN range limit is enforced.
+- **Inventory portal:** an admin edits a piece in stock and the audit log keeps the old and new values; a taken reference, an attempt to change the gold weight, an empty edit and a seller are refused; a sold piece cannot be edited; a photo is replaced and a fake image is refused without touching the current one.
 - **Sales and closing:** 8 concurrent invoices get numbers 1–8; two sales racing for one piece give one success and one `PIECE_NOT_AVAILABLE`; a rejected sale burns no number; cost frozen at sale time; expected cash ignores card sales; writes after closing are rejected; a fake PNG is rejected without consuming gold; against real RustFS, a presigned URL works without credentials and a forged signature gets 403; the assistant never sees customer data.
 
 ## Known limitations

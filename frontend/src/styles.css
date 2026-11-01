@@ -693,3 +693,162 @@ td small {
     transform: none;
   }
 }
+
+/* ---------- Catalog portal (inventory) ---------- */
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.stats div {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.stats span {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.stats strong {
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.toolbar .search {
+  flex: 1 1 240px;
+  max-width: none;
+  margin: 0;
+}
+
+.toolbar select {
+  flex: 0 1 220px;
+}
+
+.piece-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding-bottom: 0.8rem;
+}
+
+.piece .placeholder {
+  font-size: 1rem;
+}
+
+.edit-dialog {
+  width: min(560px, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  box-shadow: 0 30px 80px -20px rgb(28 25 23 / 45%);
+}
+
+.edit-dialog::backdrop {
+  background: rgb(28 25 23 / 55%);
+  backdrop-filter: blur(2px);
+}
+
+.edit-dialog form {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1.25rem;
+}
+
+.edit-dialog header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.edit-dialog h2 {
+  margin: 0;
+}
+
+.dropzone {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.dropzone:hover,
+.dropzone:focus-within {
+  border-color: var(--gold);
+  background: var(--gold-soft);
+}
+
+.dropzone img,
+.dropzone .placeholder {
+  width: 120px;
+  aspect-ratio: 3 / 4;
+  margin: 0;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.dropzone input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+/* ---------- Petty-cash receipts ---------- */
+
+.receipt-thumb img {
+  display: block;
+  width: 44px;
+  height: 56px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.receipts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.receipts figure {
+  margin: 0;
+}
+
+.receipts img {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  object-fit: cover;
+  background: var(--surface-2);
+}
+
+.receipts figcaption {
+  margin-top: 0.4rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}

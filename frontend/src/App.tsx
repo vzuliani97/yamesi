@@ -33,7 +33,7 @@ const ICONS = {
 
 const TABS = [
   { id: 'sell', label: 'Vender', title: 'Punto de venta', subtitle: 'Selecciona las piezas y emite la factura de venta.', page: SellPage, adminOnly: false },
-  { id: 'inventory', label: 'Inventario', title: 'Inventario de oro', subtitle: 'Lotes de oro y piezas, con trazabilidad por lote.', page: InventoryPage, adminOnly: false },
+  { id: 'inventory', label: 'Inventario', title: 'Inventario y catálogo', subtitle: 'Piezas con foto, referencia y peso; lotes de oro con trazabilidad.', page: InventoryPage, adminOnly: false },
   { id: 'petty-cash', label: 'Caja menor', title: 'Caja menor', subtitle: 'Gastos del día con la foto de su recibo.', page: PettyCashPage, adminOnly: false },
   { id: 'closing', label: 'Cierre de caja', title: 'Cierre de caja', subtitle: 'Efectivo esperado contra contado; el cierre bloquea el día.', page: ClosingPage, adminOnly: false },
   { id: 'reports', label: 'Reportes', title: 'Reportes', subtitle: 'Oro por kilataje, margen bruto y auditoría.', page: ReportsPage, adminOnly: true },
