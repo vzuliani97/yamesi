@@ -37,7 +37,7 @@ export function InventoryPage({ token, user, onUnauthorized }: PageProps) {
               <th>Proveedor</th>
               <th>Comprado</th>
               <th>Disponible</th>
-              <th>Costo / g</th>
+              {isAdmin && <th>Costo / g</th>}
             </tr>
           </thead>
           <tbody>
@@ -50,7 +50,7 @@ export function InventoryPage({ token, user, onUnauthorized }: PageProps) {
                 <td>
                   {formatGrams(lot.remainingGrams)} de {formatGrams(lot.totalGrams)}
                 </td>
-                <td>{formatCop(lot.costPerGram)}</td>
+                {isAdmin && <td>{formatCop(lot.costPerGram ?? 0)}</td>}
               </tr>
             ))}
           </tbody>

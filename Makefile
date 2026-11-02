@@ -1,10 +1,17 @@
 .PHONY: up up-ai down reset demo logs test test-db test-db-stop
 
-up:
+## Creates .env from .env.example with a fresh random value for every "replace-with-..." secret
+.env:
+	@while IFS= read -r line; do \
+		case "$$line" in *=replace-with-*) echo "$${line%%=*}=$$(openssl rand -hex 32)" ;; *) echo "$$line" ;; esac; \
+	done < .env.example > .env
+	@echo "Created .env with random secrets"
+
+up: .env
 	docker compose up --build
 
 ## Same as up, plus the AI assistant with a local model (first run downloads ~2 GB)
-up-ai:
+up-ai: .env
 	docker compose --profile ai up -d ollama
 	docker compose exec ollama ollama pull $${OLLAMA_MODEL:-qwen2.5:3b}
 	ASSISTANT_ENABLED=true docker compose --profile ai up --build
@@ -12,12 +19,12 @@ up-ai:
 down:
 	docker compose --profile ai down
 
-reset:
+reset: .env
 	docker compose down -v
 	docker compose up --build
 
 ## Deterministic demo: wipes the local demo volumes, seeds, then runs one scripted business day (synthetic data)
-demo:
+demo: .env
 	docker compose down -v
 	docker compose up -d --build --wait
 	./scripts/demo-scenario.sh
@@ -25,10 +32,10 @@ demo:
 logs:
 	docker compose logs -f backend
 
-# Unit + e2e tests in containers, with a disposable database and object store.
-test:
+# Unit + e2e tests in containers, with a disposable database and object store. The demo stack and its data are left alone.
+test: .env
 	docker compose --profile test run --rm --build backend-test
-	docker compose --profile test down -v
+	docker compose --profile test rm --stop --force --volumes postgres-test storage-test backend-test
 
 # Disposable Postgres on port 55433 for running `npm run test:e2e` from backend/ without Docker for Node.
 test-db:

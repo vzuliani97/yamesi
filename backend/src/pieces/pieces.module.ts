@@ -160,7 +160,7 @@ export class PiecesService {
     if (image) {
       const type = requireImage(image);
       imageKey = `pieces/${randomUUID()}.${type.extension}`;
-      await this.storage.put(imageKey, image.buffer, type.contentType);
+      await this.storage.put(imageKey, type.body, type.contentType);
     }
 
     const id = await this.db.transaction(async (client) => {
@@ -244,7 +244,7 @@ export class PiecesService {
     const type = requireImage(image);
     await this.get(id);
     const imageKey = `pieces/${randomUUID()}.${type.extension}`;
-    await this.storage.put(imageKey, image.buffer, type.contentType);
+    await this.storage.put(imageKey, type.body, type.contentType);
 
     await this.db.transaction(async (client) => {
       const before = await this.lockInStock(client, id);
@@ -272,19 +272,26 @@ export class PiecesService {
   }
 }
 
+/** The labor cost reveals the margin, which only administrators see (the reports are admin-only too). */
+function forViewer<T extends { laborCost: number }>(piece: T, user: AuthUser) {
+  if (user.role === 'ADMIN') return piece;
+  const { laborCost: _hidden, ...visible } = piece;
+  return visible;
+}
+
 @Controller('pieces')
 @UseGuards(JwtAuthGuard)
 export class PiecesController {
   constructor(private readonly pieces: PiecesService) {}
 
   @Get()
-  list(@Query(new ZodValidationPipe(listQuerySchema)) query: { status?: 'IN_STOCK' | 'SOLD' }) {
-    return this.pieces.list(query.status);
+  async list(@Query(new ZodValidationPipe(listQuerySchema)) query: { status?: 'IN_STOCK' | 'SOLD' }, @CurrentUser() user: AuthUser) {
+    return (await this.pieces.list(query.status)).map((piece) => forViewer(piece, user));
   }
 
   @Get(':id')
-  get(@Param('id', ParseIntPipe) id: number) {
-    return this.pieces.get(id);
+  async get(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
+    return forViewer(await this.pieces.get(id), user);
   }
 
   @Post()

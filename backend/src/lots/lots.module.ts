@@ -84,14 +84,21 @@ export class LotsService {
   }
 }
 
+/** The purchase cost reveals the margin, which only administrators see (the reports are admin-only too). */
+function forViewer<T extends { costPerGram: number }>(lot: T, user: AuthUser) {
+  if (user.role === 'ADMIN') return lot;
+  const { costPerGram: _hidden, ...visible } = lot;
+  return visible;
+}
+
 @Controller('lots')
 @UseGuards(JwtAuthGuard)
 export class LotsController {
   constructor(private readonly lots: LotsService) {}
 
   @Get()
-  list() {
-    return this.lots.list();
+  async list(@CurrentUser() user: AuthUser) {
+    return (await this.lots.list()).map((lot) => forViewer(lot, user));
   }
 
   @Post()

@@ -24,7 +24,7 @@ A jewelry counter sells 18k gold pieces whose value depends on their weight. The
 Everything in this repository, end to end:
 
 - **Data model and migrations:** gold lots in integer milligrams, pieces that consume gold from their lot, gap-free invoice numbering, VAT split per line, petty cash, daily closings and an audit log, all in plain versioned SQL with database constraints as the last line of defense.
-- **API (NestJS):** authentication with roles, Zod validation on every input, idempotent invoices, row and advisory locks for concurrency, safe image uploads to S3 and a uniform `{error:{code,message}}` format.
+- **API (NestJS):** authentication with roles, Zod validation on every input, idempotent invoices, row and advisory locks for concurrency, image uploads checked by content and stripped of metadata before they reach S3, and a uniform `{error:{code,message}}` format.
 - **Colombian invoice:** the PDF layout, CUFE with SHA-384 checked against the DIAN's official example, the QR, the total in words and the lifetime gold warranty.
 - **Frontend (React):** the point of sale with catalog photos, the invoice panel, the inventory portal with photo upload, petty cash with receipt photos, closing, reports and the assistant screen.
 - **AI assistant:** a local model (Ollama) limited to five read-only aggregate tools, with an evaluation of its answers.
@@ -119,7 +119,7 @@ Gold by karat across lots, stock and sales; gross margin without VAT from costs 
 | Data and storage | PostgreSQL 16 (plain SQL, versioned migrations), S3 through AWS SDK v3; RustFS as the local S3 server |
 | Infrastructure and DevOps | Docker multi-stage images running as non-root, Docker Compose; the business's real system runs on AWS EC2 and S3 |
 | CI/CD and quality | GitHub Actions (actions pinned by SHA), Jest + Supertest: 54 tests (22 unit, 30 integration against PostgreSQL, 2 against RustFS), Dependabot |
-| Security | CodeQL, Gitleaks, `npm audit`, Trivy image scan, OWASP ZAP baseline (DAST), an image-metadata check, login lockout, magic-byte upload checks |
+| Security | CodeQL, Gitleaks, `npm audit`, Trivy image scan, OWASP ZAP baseline (DAST), an image-metadata check, login lockout, uploads checked by content and stripped of metadata |
 | AI (optional) | Ollama with Qwen2.5 3B and tool calling, limited to five read-only tools |
 
 ## Architecture
@@ -144,7 +144,9 @@ Photos are shown through **presigned URLs** that expire after 5 minutes, so the 
 - **The closing locks the day.** Sales and expenses take a **shared** advisory lock on their date; the closing takes an **exclusive** one, so nothing can slip in while totals are computed. Afterwards every write for that date gets `DAY_CLOSED`.
 - **Business date in Bogotá time, not UTC.** At 8 p.m. in Colombia it is already tomorrow in UTC. The date comes from `BUSINESS_TIMEZONE`.
 - **Login throttling.** After 5 failed logins for one email from one address, that pair is locked for 15 minutes (`429 TOO_MANY_ATTEMPTS`), even for the right password.
-- **Safe uploads.** The image type is detected from its magic bytes, never from the file name or `Content-Type`. Uploads are capped at 2 MB in both Multer and nginx.
+- **Safe uploads.** The image type is detected from its magic bytes, never from the file name or `Content-Type`, and a file whose structure does not parse is refused. EXIF, XMP and text metadata (a phone photo's GPS coordinates) are removed before storage; only the orientation is kept. Uploads are capped at 2 MB in both Multer and nginx.
+- **Costs for administrators only.** Sellers get pieces and gold lots without their labor cost and price per gram, which would let them work out the admin-only margin.
+- **No placeholder secrets.** The API refuses to start with the `replace-with-…` values of `.env.example`; `make .env` generates random ones.
 - **PDF after commit.** The invoice commits first; if the PDF fails it is regenerated on download.
 - **Hardened delivery.** nginx sends a strict Content-Security-Policy that allows images only from the app and the storage origin of the presigned URLs (`PHOTO_ORIGIN`), plus `nosniff`, no framing and no version banner. The API image carries no package manager. In CI, Trivy fails the build on any fixable critical or high CVE in the images, and an OWASP ZAP baseline scan of the running stack fails it on any warning not accepted, with its reason, in [`.zap/rules.tsv`](.zap/rules.tsv).
 
@@ -169,7 +171,7 @@ The first prompt version answered date questions generically without calling too
 ## Run it
 
 ```bash
-cp .env.example .env      # then change the values
+make .env                 # .env.example with random secrets
 make up                   # app at http://localhost:8083
 make up-ai                # same, plus the local model (~2 GB download the first time)
 ```

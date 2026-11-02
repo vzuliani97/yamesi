@@ -15,7 +15,7 @@ export interface Lot {
   supplier: string;
   totalGrams: number;
   remainingGrams: number;
-  costPerGram: number;
+  costPerGram?: number; // administrators only
   purchasedOn: string;
 }
 

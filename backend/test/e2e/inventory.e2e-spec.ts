@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { createLot, createPiece, createTestApp, createUser, login, resetDatabase, TestContext, TINY_PNG } from './helpers';
 
 describe('Gold lots and pieces', () => {
@@ -164,6 +166,45 @@ describe('Gold lots and pieces', () => {
     expect(fake.body.error.code).toBe('INVALID_IMAGE');
     const after = await ctx.http().get(`/api/pieces/${piece}`).set('Authorization', `Bearer ${adminToken}`);
     expect(after.body.imageUrl).toBe(response.body.imageUrl);
+  });
+
+  it('keeps costs from sellers, who could otherwise work out the admin-only margin', async () => {
+    const lotId = await createLot(ctx.pool, adminId, { grams: 50, costPerGram: 320_000 });
+    const piece = await createPiece(ctx.pool, adminId, lotId, { laborCost: 90_000 });
+    const get = (path: string, token: string) => ctx.http().get(path).set('Authorization', `Bearer ${token}`);
+
+    expect((await get('/api/lots', adminToken)).body[0].costPerGram).toBe(320_000);
+    expect((await get(`/api/pieces/${piece}`, adminToken)).body.laborCost).toBe(90_000);
+
+    const lots = await get('/api/lots', sellerToken);
+    const pieces = await get('/api/pieces', sellerToken);
+    const one = await get(`/api/pieces/${piece}`, sellerToken);
+    expect(lots.body[0]).not.toHaveProperty('costPerGram');
+    expect(lots.body[0]).toMatchObject({ code: 'L-00001', remainingGrams: 48 });
+    expect(pieces.body[0]).not.toHaveProperty('laborCost');
+    expect(one.body).not.toHaveProperty('laborCost');
+    expect(one.body.price).toBe(1_000_000);
+  });
+
+  it('stores an uploaded photo without the GPS coordinates its EXIF carried', async () => {
+    const lotId = await createLot(ctx.pool, adminId, { grams: 50 });
+    const piece = await createPiece(ctx.pool, adminId, lotId);
+    const photo = readFileSync(join(__dirname, '../fixtures/piece.jpg'));
+    const exif = Buffer.from('Exif\0\0MM\0*\0\0\0\x08\0\x01\x88\x25\0\x04\0\0\0\x01\0\0\0\x1a\0\0\0\0', 'latin1');
+    const app1 = Buffer.from([0xff, 0xe1, 0, exif.length + 2]);
+    const fromPhone = Buffer.concat([photo.subarray(0, 2), app1, exif, photo.subarray(2)]);
+
+    const response = await ctx
+      .http()
+      .put(`/api/pieces/${piece}/photo`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .attach('image', fromPhone, { filename: 'IMG_0001.jpg', contentType: 'image/jpeg' });
+
+    expect(response.status).toBe(200);
+    const stored = await ctx.storage.get(response.body.imageUrl.replace('memory://', ''));
+    expect(fromPhone.includes(Buffer.from('Exif'))).toBe(true);
+    expect(stored.includes(Buffer.from('Exif'))).toBe(false);
+    expect(stored.subarray(-100).equals(photo.subarray(-100))).toBe(true);
   });
 
   it('reports gold by karat across lots, stock and sales', async () => {

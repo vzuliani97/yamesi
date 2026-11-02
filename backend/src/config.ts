@@ -59,6 +59,13 @@ const schema = z.object({
         'factura. Los defectos de fabricación tienen la garantía legal de la Ley 1480 de 2011 (Estatuto del Consumidor). ' +
         'Conserve esta factura: es el soporte para hacer efectiva la garantía.',
     ),
+}).superRefine((env, ctx) => {
+  // .env.example publishes placeholder secrets. Anyone who knows the JWT one can sign an admin token.
+  for (const key of ['JWT_SECRET', 'S3_SECRET_KEY'] as const) {
+    if (env[key]?.startsWith('replace-with')) {
+      ctx.addIssue({ code: 'custom', path: [key], message: 'replace the .env.example placeholder (make .env does it)' });
+    }
+  }
 });
 
 export type AppConfig = z.infer<typeof schema>;

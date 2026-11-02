@@ -56,8 +56,8 @@ jobs:
     needs: [backend]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Prepare environment
-        run: cp .env.example .env
+      - name: Prepare environment (random secrets)
+        run: make .env
       - name: Run unit and e2e tests against PostgreSQL and RustFS
         run: docker compose --profile test run --rm --build backend-test
       - name: Build production images

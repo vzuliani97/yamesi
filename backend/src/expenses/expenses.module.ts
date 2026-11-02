@@ -63,7 +63,7 @@ export class ExpensesService {
     if (receipt) {
       const type = requireImage(receipt);
       receiptKey = `receipts/${date}/${randomUUID()}.${type.extension}`;
-      await this.storage.put(receiptKey, receipt.buffer, type.contentType);
+      await this.storage.put(receiptKey, type.body, type.contentType);
     }
 
     const id = await this.db.transaction(async (client) => {
