@@ -231,7 +231,7 @@ export function renderInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
       cells.forEach((value, i) => {
         if (value !== null) doc.text(value, cols[i].x + 3, withPhotos ? y + rowHeight / 2 - 4 : y + 7, { width: cols[i].w - 6, align: cols[i].align, lineBreak: false, ellipsis: true });
       });
-      const description = item.size ? `${item.name} · ${item.size}` : item.name;
+      const description = item.name;
       let textX = cols[2].x + 3;
       if (item.photo) {
         doc.save();
@@ -243,10 +243,11 @@ export function renderInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
       const textWidth = cols[2].w - 6 - (textX - cols[2].x - 3);
       // With photos, the two text lines sit centered next to the picture.
       const textTop = withPhotos ? y + rowHeight / 2 - 11 : y + 5;
-      doc.font('Helvetica-Bold').fontSize(8.5).text(description, textX, textTop, { width: textWidth, lineBreak: false, ellipsis: true });
+      // One line at most: a long catalog name is cut with an ellipsis instead of running into the weight line.
+      doc.font('Helvetica-Bold').fontSize(8.5).text(description, textX, textTop, { width: textWidth, height: 10, ellipsis: true });
       doc.font('Helvetica').fontSize(7.5).fillColor(COLOR.muted)
         // With a catalog reference in its own column, the piece's serial identifies the exact unit sold.
-        .text(`Oro ${item.karat}k · ley ${fineness(item.karat)} · ${grams.format(item.grams)} g${item.reference ? ` · ${item.sku}` : ''}`, textX, textTop + 12, { width: textWidth });
+        .text(`Oro ${item.karat}k · ley ${fineness(item.karat)} · ${grams.format(item.grams)} g${item.size ? ` · ${item.size}` : ''}${item.reference ? ` · ${item.sku}` : ''}`, textX, textTop + 12, { width: textWidth });
       doc.moveTo(PAGE.left, y + rowHeight).lineTo(PAGE.right, y + rowHeight).lineWidth(0.5).strokeColor(COLOR.line).stroke();
       y += rowHeight;
     });
