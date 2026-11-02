@@ -63,7 +63,7 @@ const schema = z.object({
   // .env.example publishes placeholder secrets. Anyone who knows the JWT one can sign an admin token.
   for (const key of ['JWT_SECRET', 'S3_SECRET_KEY'] as const) {
     if (env[key]?.startsWith('replace-with')) {
-      ctx.addIssue({ code: 'custom', path: [key], message: 'replace the .env.example placeholder (make .env does it)' });
+      ctx.addIssue({ code: 'custom', path: [key], message: 'replace the .env.example placeholder: openssl rand -hex 32, or delete .env and run make .env' });
     }
   }
 });
