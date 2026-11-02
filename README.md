@@ -278,4 +278,4 @@ Source code: MIT.
 
 Catalog photographs, product names, references and prices in `backend/demo-assets/` and in the screenshots: © Inversiones Zuliani S.A.S. (Joyería Yamesi), used with permission and not covered by the MIT License. They are a snapshot of the store's public catalog taken on 2026-11-01; prices and availability do not represent the current inventory. Every published image is stripped of metadata, and CI fails if one carries GPS, camera or capture data (`scripts/image-metadata.mjs`).
 
-Independent portfolio reconstruction based on engineering patterns from professional work. It contains no employer code or confidential information; customers, costs and gold lots are synthetic. AI-assisted; verified through tests and CI.
+Independent portfolio reconstruction based on engineering patterns from professional work. It contains no employer code or confidential information; customers, costs and gold lots are synthetic.
