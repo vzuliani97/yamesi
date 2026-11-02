@@ -28,7 +28,7 @@ Everything in this repository, end to end:
 - **Colombian invoice:** the PDF layout, CUFE with SHA-384 checked against the DIAN's official example, the QR, the total in words and the lifetime gold warranty.
 - **Frontend (React):** the point of sale with catalog photos, the invoice panel, the inventory portal with photo upload, petty cash with receipt photos, closing, reports and the assistant screen.
 - **AI assistant:** a local model (Ollama) limited to five read-only aggregate tools, with an evaluation of its answers.
-- **Delivery and quality:** Docker Compose for the whole stack, non-root containers, a scripted business day (`make demo`), 54 automated tests and CI with CodeQL, Gitleaks, `npm audit`, a Trivy image scan and an OWASP ZAP scan of the running stack.
+- **Delivery and quality:** Docker Compose for the whole stack, non-root containers, a scripted business day (`make demo`), 64 automated tests and CI with CodeQL, Gitleaks, `npm audit`, a Trivy image scan and an OWASP ZAP scan of the running stack.
 
 ## Processes, step by step
 
@@ -118,7 +118,7 @@ Gold by karat across lots, stock and sales; gross margin without VAT from costs 
 | Backend | Node.js 24, NestJS 11, Zod 4, JWT, bcrypt, Helmet, PDFKit, `qrcode` (CUFE with SHA-384 as defined by the DIAN) |
 | Data and storage | PostgreSQL 16 (plain SQL, versioned migrations), S3 through AWS SDK v3; RustFS as the local S3 server |
 | Infrastructure and DevOps | Docker multi-stage images running as non-root, Docker Compose; the business's real system runs on AWS EC2 and S3 |
-| CI/CD and quality | GitHub Actions (actions pinned by SHA), Jest + Supertest: 54 tests (22 unit, 30 integration against PostgreSQL, 2 against RustFS), Dependabot |
+| CI/CD and quality | GitHub Actions (actions pinned by SHA), Jest + Supertest: 64 tests (30 unit, 32 integration against PostgreSQL, 2 against RustFS), Dependabot |
 | Security | CodeQL, Gitleaks, `npm audit`, Trivy image scan, OWASP ZAP baseline (DAST), an image-metadata check, login lockout, uploads checked by content and stripped of metadata |
 | AI (optional) | Ollama with Qwen2.5 3B and tool calling, limited to five read-only tools |
 

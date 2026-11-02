@@ -81,6 +81,22 @@ jobs:
           docker run --rm --network yamesi_default -v "$PWD/zap":/zap/wrk:rw \
             ghcr.io/zaproxy/zaproxy:2.17.0@sha256:030d3df57735dacbb83464854758e674dd9ad01d79d12a129a8e58b1fd384238 \
             zap-baseline.py -t http://frontend:8080 -c rules.tsv
+      # The attacks of the security assessment (github.com/vzuliani97/escudo) run against this stack,
+      # so a change that reopens a finding fails here, before merge, not in Escudo's weekly run.
+      # Escudo's main is used on purpose: it is my own public repo, and this job has a read-only token.
+      - name: Check out the security assessment (Escudo)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: vzuliani97/escudo
+          path: .escudo
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Run Escudo's attacks against this stack
+        env:
+          YAMESI_DIR: ${{ github.workspace }}
+        run: node --test --test-reporter=spec .escudo/attacks/yamesi.test.mjs .escudo/attacks/network.test.mjs
       - name: Tear down
         if: always()
         run: docker compose --profile test down -v
