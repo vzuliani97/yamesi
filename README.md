@@ -112,12 +112,15 @@ Gold by karat across lots, stock and sales; gross margin without VAT from costs 
 
 ## Stack
 
-- **Backend:** NestJS 11, TypeScript, PostgreSQL 16 (plain SQL, versioned migrations), Zod, JWT, PDFKit, AWS SDK v3 (S3)
-- **Storage:** S3 on AWS; RustFS (S3-compatible) locally
-- **Frontend:** React 19 + TypeScript (Vite), unprivileged nginx
-- **AI (optional):** Qwen2.5 3B via Ollama, with tool calling
-- **Invoice:** PDFKit and `qrcode`, CUFE with SHA-384 as defined by the DIAN
-- **Quality:** Jest + Supertest, 54 tests (22 unit, 30 integration against PostgreSQL, 2 against RustFS, a real S3-compatible server), CodeQL, Gitleaks, `npm audit`, Dependabot
+| Layer | Technologies |
+|---|---|
+| Frontend | React 19, TypeScript, Vite 8, served by unprivileged nginx 1.27 |
+| Backend | Node.js 24, NestJS 11, Zod 4, JWT, bcrypt, Helmet, PDFKit, `qrcode` (CUFE with SHA-384 as defined by the DIAN) |
+| Data and storage | PostgreSQL 16 (plain SQL, versioned migrations), S3 through AWS SDK v3; RustFS as the local S3 server |
+| Infrastructure and DevOps | Docker multi-stage images running as non-root, Docker Compose; the business's real system runs on AWS EC2 and S3 |
+| CI/CD and quality | GitHub Actions (actions pinned by SHA), Jest + Supertest: 54 tests (22 unit, 30 integration against PostgreSQL, 2 against RustFS), Dependabot |
+| Security | CodeQL, Gitleaks, `npm audit`, an image-metadata check, login lockout, magic-byte upload checks |
+| AI (optional) | Ollama with Qwen2.5 3B and tool calling, limited to five read-only tools |
 
 ## Architecture
 
