@@ -28,7 +28,7 @@ Everything in this repository, end to end:
 - **Colombian invoice:** the PDF layout, CUFE with SHA-384 checked against the DIAN's official example, the QR, the total in words and the lifetime gold warranty.
 - **Frontend (React):** the point of sale with catalog photos, the invoice panel, the inventory portal with photo upload, petty cash with receipt photos, closing, reports and the assistant screen.
 - **AI assistant:** a local model (Ollama) limited to five read-only aggregate tools, with an evaluation of its answers.
-- **Delivery and quality:** Docker Compose for the whole stack, non-root containers, a scripted business day (`make demo`), 54 automated tests and CI with CodeQL, Gitleaks and `npm audit`.
+- **Delivery and quality:** Docker Compose for the whole stack, non-root containers, a scripted business day (`make demo`), 54 automated tests and CI with CodeQL, Gitleaks, `npm audit`, a Trivy image scan and an OWASP ZAP scan of the running stack.
 
 ## Processes, step by step
 
@@ -114,12 +114,12 @@ Gold by karat across lots, stock and sales; gross margin without VAT from costs 
 
 | Layer | Technologies |
 |---|---|
-| Frontend | React 19, TypeScript, Vite 8, served by unprivileged nginx 1.27 |
+| Frontend | React 19, TypeScript, Vite 8, served by unprivileged nginx 1.30 with a strict Content-Security-Policy |
 | Backend | Node.js 24, NestJS 11, Zod 4, JWT, bcrypt, Helmet, PDFKit, `qrcode` (CUFE with SHA-384 as defined by the DIAN) |
 | Data and storage | PostgreSQL 16 (plain SQL, versioned migrations), S3 through AWS SDK v3; RustFS as the local S3 server |
 | Infrastructure and DevOps | Docker multi-stage images running as non-root, Docker Compose; the business's real system runs on AWS EC2 and S3 |
 | CI/CD and quality | GitHub Actions (actions pinned by SHA), Jest + Supertest: 54 tests (22 unit, 30 integration against PostgreSQL, 2 against RustFS), Dependabot |
-| Security | CodeQL, Gitleaks, `npm audit`, an image-metadata check, login lockout, magic-byte upload checks |
+| Security | CodeQL, Gitleaks, `npm audit`, Trivy image scan, OWASP ZAP baseline (DAST), an image-metadata check, login lockout, magic-byte upload checks |
 | AI (optional) | Ollama with Qwen2.5 3B and tool calling, limited to five read-only tools |
 
 ## Architecture
@@ -146,6 +146,7 @@ Photos are shown through **presigned URLs** that expire after 5 minutes, so the 
 - **Login throttling.** After 5 failed logins for one email from one address, that pair is locked for 15 minutes (`429 TOO_MANY_ATTEMPTS`), even for the right password.
 - **Safe uploads.** The image type is detected from its magic bytes, never from the file name or `Content-Type`. Uploads are capped at 2 MB in both Multer and nginx.
 - **PDF after commit.** The invoice commits first; if the PDF fails it is regenerated on download.
+- **Hardened delivery.** nginx sends a strict Content-Security-Policy that allows images only from the app and the storage origin of the presigned URLs (`PHOTO_ORIGIN`), plus `nosniff`, no framing and no version banner. The API image carries no package manager. In CI, Trivy fails the build on any fixable critical or high CVE in the images, and an OWASP ZAP baseline scan of the running stack fails it on any warning not accepted, with its reason, in [`.zap/rules.tsv`](.zap/rules.tsv).
 
 ## Optional AI assistant
 

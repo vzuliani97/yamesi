@@ -50,9 +50,9 @@ jobs:
       - run: npm run build
 
   integration:
-    name: Integration tests (PostgreSQL + S3) and Docker images
+    name: Integration tests (PostgreSQL + S3), image scan and DAST
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     needs: [backend]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -62,6 +62,25 @@ jobs:
         run: docker compose --profile test run --rm --build backend-test
       - name: Build production images
         run: docker compose build backend frontend
+      # Security tools are pinned by digest, like actions by SHA: a moved tag cannot change what runs.
+      # Only fixable findings block the build; an unfixed CVE has no upgrade to apply yet.
+      - name: Scan images for fixable critical and high vulnerabilities (Trivy)
+        run: |
+          for image in yamesi-backend yamesi-frontend; do
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+              aquasec/trivy:0.69.3@sha256:bcc376de8d77cfe086a917230e818dc9f8528e3c852f7b1aff648949b6258d1c \
+              image --exit-code 1 --severity CRITICAL,HIGH --ignore-unfixed --no-progress "$image"
+          done
+      - name: Start the stack for the DAST scan
+        run: docker compose up -d --wait backend frontend
+      # Passive scan of the running app: headers, cookies, leaks. Any warning not accepted in
+      # .zap/rules.tsv (each with its reason) fails the build.
+      - name: DAST baseline scan (OWASP ZAP)
+        run: |
+          mkdir -p zap && cp .zap/rules.tsv zap/ && chmod -R a+rwX zap
+          docker run --rm --network yamesi_default -v "$PWD/zap":/zap/wrk:rw \
+            ghcr.io/zaproxy/zaproxy:2.17.0@sha256:030d3df57735dacbb83464854758e674dd9ad01d79d12a129a8e58b1fd384238 \
+            zap-baseline.py -t http://frontend:8080 -c rules.tsv
       - name: Tear down
         if: always()
         run: docker compose --profile test down -v
@@ -75,7 +94,7 @@ jobs:
         with:
           fetch-depth: 0 # scan the whole history, not just the last commit
       - name: Scan git history for secrets (Gitleaks)
-        run: docker run --rm -v "$PWD":/repo zricethezav/gitleaks:v8.30.1 git /repo --no-banner --redact
+        run: docker run --rm -v "$PWD":/repo zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f git /repo --no-banner --redact
       - name: Audit production dependencies (backend)
         working-directory: backend
         run: npm audit --omit=dev --audit-level=high
