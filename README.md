@@ -3,6 +3,8 @@
 [![CI](https://github.com/vzuliani97/yamesi/actions/workflows/ci.yml/badge.svg)](https://github.com/vzuliani97/yamesi/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/vzuliani97/yamesi/actions/workflows/codeql.yml/badge.svg)](https://github.com/vzuliani97/yamesi/actions/workflows/codeql.yml)
 
+**Try it online: https://yamesi.netlify.app** · Seller `vendedor@yamesi.local` or administrator `admin@yamesi.local`, password `YamesiDemo-2026` (shown on the sign-in screen). The data is synthetic and resets each time the server starts. The server runs on a free plan and sleeps when idle, so the first visit can take about a minute. It is hosted on the free plans of Netlify, Render and Neon, deployed from `main` ([how](docs/PUBLIC_DEMO_DEPLOYMENT.md)); the AWS design in OpsCircuit was never applied.
+
 Accounting and inventory system for a small jewelry store. It replaces spreadsheets and paper petty-cash receipts with gold traceability, invoicing, petty cash and a daily cash closing.
 
 This is an **independent rebuild** of a system I built and still maintain for a real business, Joyería Yamesi in Medellín. It contains none of that business's code, customers or accounting records. The demo pieces are real products from the store's public catalog: **44 pieces with their catalog reference, name, size, gold weight, price and photo**. Users, gold lots, costs and customers are synthetic.
@@ -118,7 +120,7 @@ Gold by karat across lots, stock and sales; gross margin without VAT from costs 
 | Backend | Node.js 24, NestJS 11, Zod 4, JWT, bcrypt, Helmet, PDFKit, `qrcode` (CUFE with SHA-384 as defined by the DIAN) |
 | Data and storage | PostgreSQL 16 (plain SQL, versioned migrations), S3 through AWS SDK v3; RustFS as the local S3 server |
 | Infrastructure and DevOps | Docker multi-stage images running as non-root, Docker Compose; the business's real system runs on AWS EC2 and S3 |
-| CI/CD and quality | GitHub Actions (actions pinned by SHA), Jest + Supertest: 64 tests (30 unit, 32 integration against PostgreSQL, 2 against RustFS), Dependabot |
+| CI/CD and quality | GitHub Actions (actions pinned by SHA), Jest + Supertest: 74 tests (36 unit, 36 integration against PostgreSQL, 2 against RustFS), Dependabot |
 | Security | CodeQL, Gitleaks, `npm audit`, Trivy image scan, OWASP ZAP baseline (DAST), an image-metadata check, login lockout, uploads checked by content and stripped of metadata |
 | AI (optional) | Ollama with Qwen2.5 3B and tool calling, limited to five read-only tools |
 
