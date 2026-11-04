@@ -1,3 +1,4 @@
+import { API_BASE } from './demo';
 export type Role = 'ADMIN' | 'SELLER';
 export type PaymentMethod = 'CASH' | 'CARD' | 'TRANSFER';
 
@@ -122,7 +123,18 @@ async function send(path: string, options: RequestOptions): Promise<Response> {
     headers.Authorization = `Bearer ${options.token}`;
   }
 
-  const response = await fetch(`/api${path}`, { method: options.method ?? 'GET', headers, body });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}/api${path}`, {
+      method: options.method ?? 'GET',
+      headers,
+      body,
+      signal: AbortSignal.timeout(30_000),
+    });
+  } catch (error) {
+    const timedOut = error instanceof DOMException && error.name === 'TimeoutError';
+    throw new ApiError(0, timedOut ? 'TIMEOUT' : 'NETWORK', timedOut ? 'Request timed out' : 'Network error');
+  }
 
   if (!response.ok) {
     const data = await response.json().catch(() => null);
@@ -153,6 +165,11 @@ const MESSAGES: Record<string, string> = {
   PAYLOAD_TOO_LARGE: 'El archivo supera los 2 MB.',
   ASSISTANT_UNAVAILABLE: 'El modelo de IA no está disponible en este momento.',
   UNAUTHORIZED: 'Tu sesión expiró. Vuelve a ingresar.',
+  RATE_LIMITED: 'Demasiadas solicitudes seguidas. Espera un momento e inténtalo de nuevo.',
+  TIMEOUT: 'El servidor tardó demasiado en responder. Inténtalo de nuevo.',
+  NETWORK: 'No hay conexión con el servidor. Si la demo estuvo inactiva, puede estar iniciándose: recarga la página.',
+  FILE_NOT_FOUND: 'El archivo no está disponible en este momento.',
+  TOO_MANY_ATTEMPTS: 'Demasiados intentos fallidos. Espera 15 minutos.',
 };
 
 export function errorMessage(error: unknown): string {

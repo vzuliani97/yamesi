@@ -4,6 +4,7 @@ import { AssistantPage } from './pages/Assistant';
 import { ClosingPage } from './pages/Closing';
 import { InventoryPage } from './pages/Inventory';
 import { LoginPage } from './pages/Login';
+import { DemoNotice } from './WakeGate';
 import { PettyCashPage } from './pages/PettyCash';
 import { ReportsPage } from './pages/Reports';
 import { SellPage } from './pages/Sell';
@@ -113,6 +114,7 @@ export function App() {
           <p>{current.subtitle}</p>
         </header>
         <Page token={session.token} user={session.user} onUnauthorized={signOut} />
+        <DemoNotice />
       </main>
     </div>
   );

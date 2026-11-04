@@ -1,6 +1,8 @@
 import { FormEvent, useState } from 'react';
 import { api, errorMessage, User } from '../api';
 import type { Session } from '../App';
+import { DEMO_PASSWORD, IS_PUBLIC_DEMO } from '../demo';
+import { DemoNotice } from '../WakeGate';
 
 export function LoginPage({ onSignIn }: { onSignIn: (session: Session) => void }) {
   const [email, setEmail] = useState('');
@@ -49,8 +51,16 @@ export function LoginPage({ onSignIn }: { onSignIn: (session: Session) => void }
         <button type="submit" className="btn-gold" disabled={busy}>
           {busy ? 'Ingresando…' : 'Ingresar'}
         </button>
-        <p className="hint">Demo: vendedor@yamesi.local o admin@yamesi.local</p>
+        {IS_PUBLIC_DEMO && DEMO_PASSWORD ? (
+          <p className="hint">
+            Cuentas de la demo (solo datos sintéticos): <code>vendedor@yamesi.local</code> o <code>admin@yamesi.local</code>, contraseña{' '}
+            <code>{DEMO_PASSWORD}</code>
+          </p>
+        ) : (
+          <p className="hint">Demo: vendedor@yamesi.local o admin@yamesi.local</p>
+        )}
       </form>
+      <DemoNotice />
     </div>
   );
 }

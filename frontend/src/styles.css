@@ -891,3 +891,9 @@ td small {
   display: block;
   color: var(--muted);
 }
+
+/* Public demo: start-up screen and the notice line */
+.wake p { margin: 0 0 0.75rem; }
+.wake-bar { height: 6px; border-radius: 999px; background: rgba(0, 0, 0, 0.08); overflow: hidden; margin: 1rem 0 0.5rem; }
+.wake-bar span { display: block; height: 100%; background: #b8862f; transition: width 0.5s ease; }
+.demo-notice { font-size: 0.8rem; color: #6b6257; text-align: center; margin: 1.5rem auto 0.5rem; max-width: 60rem; }
