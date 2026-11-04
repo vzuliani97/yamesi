@@ -6,8 +6,25 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { Global, Injectable, Logger, Module, OnModuleInit } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Global,
+  Inject,
+  Injectable,
+  Logger,
+  Module,
+  OnModuleInit,
+  Param,
+  Query,
+  Res,
+  StreamableFile,
+} from '@nestjs/common';
+import { Response } from 'express';
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import { AppError } from '../common/app-error';
 import { APP_CONFIG, AppConfig } from '../config';
+import { DatabaseService } from '../database/database.service';
 
 export const FILE_STORAGE = Symbol('FILE_STORAGE');
 
@@ -88,14 +105,103 @@ export class InMemoryFileStorage implements FileStorage {
   }
 }
 
+/**
+ * Files kept in PostgreSQL, for the free public demo, which has no object store. Links work like S3 presigned
+ * URLs: the API signs key and expiry with HMAC-SHA256, and FilesController serves the file only while the
+ * signature is valid and unexpired.
+ */
+@Injectable()
+export class PostgresFileStorage implements FileStorage {
+  private readonly signingKey: Buffer;
+
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly config: AppConfig,
+  ) {
+    // Derived from the JWT secret, so it needs no extra setting and a file link can never pass as a token.
+    this.signingKey = createHmac('sha256', config.JWT_SECRET).update('yamesi:file-links').digest();
+  }
+
+  async put(key: string, body: Buffer, contentType: string): Promise<void> {
+    await this.db.query(
+      `INSERT INTO stored_files (key, content_type, body) VALUES ($1, $2, $3)
+       ON CONFLICT (key) DO UPDATE SET content_type = EXCLUDED.content_type, body = EXCLUDED.body`,
+      [key, contentType, body],
+    );
+  }
+
+  async get(key: string): Promise<Buffer> {
+    return (await this.read(key)).body;
+  }
+
+  async read(key: string): Promise<{ body: Buffer; contentType: string }> {
+    const { rows } = await this.db.query<{ body: Buffer; content_type: string }>(
+      'SELECT body, content_type FROM stored_files WHERE key = $1',
+      [key],
+    );
+    if (rows.length === 0) {
+      throw new AppError(404, 'FILE_NOT_FOUND', 'File not found');
+    }
+    return { body: rows[0].body, contentType: rows[0].content_type };
+  }
+
+  async signedUrl(key: string, expiresInSeconds = 300): Promise<string> {
+    const expires = Math.floor(Date.now() / 1000) + expiresInSeconds;
+    const query = `expires=${expires}&signature=${this.sign(key, expires)}`;
+    return `${this.config.PUBLIC_API_URL}/api/files/${encodeURIComponent(key)}?${query}`;
+  }
+
+  isValid(key: string, expires: string, signature: string, nowSeconds = Math.floor(Date.now() / 1000)): boolean {
+    if (!/^\d{10}$/.test(expires) || Number(expires) < nowSeconds || !/^[0-9a-f]{64}$/.test(signature)) {
+      return false;
+    }
+    return timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(this.sign(key, Number(expires)), 'hex'));
+  }
+
+  private sign(key: string, expires: number): string {
+    return createHmac('sha256', this.signingKey).update(`${key}\n${expires}`).digest('hex');
+  }
+}
+
+/** Serves PostgreSQL-stored files to whoever holds a valid signed link. Answers 404 with any other driver. */
+@Controller('files')
+export class FilesController {
+  constructor(@Inject(FILE_STORAGE) private readonly storage: FileStorage) {}
+
+  @Get(':key')
+  async download(
+    @Param('key') key: string,
+    @Query('expires') expires: string,
+    @Query('signature') signature: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (!(this.storage instanceof PostgresFileStorage)) {
+      throw new AppError(404, 'NOT_FOUND', 'Not found');
+    }
+    if (!this.storage.isValid(key, String(expires ?? ''), String(signature ?? ''))) {
+      throw new AppError(403, 'INVALID_FILE_LINK', 'This file link is invalid or has expired');
+    }
+    const file = await this.storage.read(key);
+    res.setHeader('Content-Type', file.contentType);
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    // The demo frontend lives on another origin (Netlify) and shows these files in <img> tags.
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    return new StreamableFile(file.body);
+  }
+}
+
 @Global()
 @Module({
+  controllers: [FilesController],
   providers: [
     {
       provide: FILE_STORAGE,
-      inject: [APP_CONFIG],
-      useFactory: (config: AppConfig): FileStorage =>
-        config.STORAGE_DRIVER === 'memory' ? new InMemoryFileStorage() : new S3FileStorage(config),
+      inject: [APP_CONFIG, DatabaseService],
+      useFactory: (config: AppConfig, db: DatabaseService): FileStorage => {
+        if (config.STORAGE_DRIVER === 'memory') return new InMemoryFileStorage();
+        if (config.STORAGE_DRIVER === 'postgres') return new PostgresFileStorage(db, config);
+        return new S3FileStorage(config);
+      },
     },
   ],
   exports: [FILE_STORAGE],

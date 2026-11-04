@@ -17,7 +17,11 @@ const schema = z.object({
   TRUST_PROXY: z.coerce.number().int().min(0).default(0),
   // The store's "day" for invoices and cash closing follows local time, not UTC.
   BUSINESS_TIMEZONE: z.string().default('America/Bogota'),
-  STORAGE_DRIVER: z.enum(['s3', 'memory']).default('s3'),
+  // s3 for RustFS locally and S3 on AWS; postgres keeps files in the database (the free public demo has no
+  // object store); memory for tests.
+  STORAGE_DRIVER: z.enum(['s3', 'postgres', 'memory']).default('s3'),
+  // Absolute base of this API as browsers reach it, used to build file links when STORAGE_DRIVER=postgres.
+  PUBLIC_API_URL: z.url().optional(),
   // Leave S3_ENDPOINT empty on real AWS. Set it for S3-compatible servers (RustFS, MinIO).
   S3_ENDPOINT: z.url().optional(),
   // Host the browser uses for presigned URLs, when it differs from the one the API uses.
@@ -33,6 +37,12 @@ const schema = z.object({
   OLLAMA_MODEL: z.string().min(1).default('qwen2.5:3b'),
   ASSISTANT_TIMEOUT_MS: z.coerce.number().int().positive().default(120000),
   SEED_DEMO_DATA: booleanFlag,
+  // Public demo on free hosting: exact HTTPS origin, a request rate limit, and synthetic data that is restored
+  // on every boot. The reset runs only when the connected database's name equals DEMO_DATABASE_CONFIRMATION.
+  PUBLIC_DEMO: booleanFlag,
+  DEMO_RESET_ON_BOOT: booleanFlag,
+  DEMO_DATABASE_CONFIRMATION: z.string().regex(/^[a-z0-9_]{3,63}$/).optional(),
+  RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(240),
   DEMO_PASSWORD: z.string().min(8).default('yamesi-demo'),
   // Issuer data printed on every invoice (Estatuto Tributario art. 617). The defaults are fictitious on purpose:
   // this repository renders the graphic representation only and never transmits invoices to the DIAN.
@@ -65,6 +75,23 @@ const schema = z.object({
     if (env[key]?.startsWith('replace-with')) {
       ctx.addIssue({ code: 'custom', path: [key], message: 'replace the .env.example placeholder: openssl rand -hex 32, or delete .env and run make .env' });
     }
+  }
+  if (env.DEMO_RESET_ON_BOOT && !env.PUBLIC_DEMO) {
+    ctx.addIssue({ code: 'custom', path: ['DEMO_RESET_ON_BOOT'], message: 'only allowed with PUBLIC_DEMO=true' });
+  }
+  if (env.PUBLIC_DEMO) {
+    if (!env.DEMO_DATABASE_CONFIRMATION) {
+      ctx.addIssue({ code: 'custom', path: ['DEMO_DATABASE_CONFIRMATION'], message: 'required with PUBLIC_DEMO=true' });
+    }
+    if (!/^https:\/\/[a-z0-9.-]+$/.test(env.CORS_ORIGIN)) {
+      ctx.addIssue({ code: 'custom', path: ['CORS_ORIGIN'], message: 'must be one exact https origin with PUBLIC_DEMO=true' });
+    }
+    if (env.ASSISTANT_ENABLED) {
+      ctx.addIssue({ code: 'custom', path: ['ASSISTANT_ENABLED'], message: 'the local AI assistant is not part of the public demo' });
+    }
+  }
+  if (env.STORAGE_DRIVER === 'postgres' && !env.PUBLIC_API_URL) {
+    ctx.addIssue({ code: 'custom', path: ['PUBLIC_API_URL'], message: 'required with STORAGE_DRIVER=postgres' });
   }
 });
 
