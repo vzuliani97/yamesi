@@ -18,10 +18,12 @@
   to = "/index.html"
   status = 200
 
+# The two hashes allow only the exact inline script and style that Netlify's free-plan badge injects
+# (/.netlify/scripts/hud). If Netlify changes them, only the badge breaks; the app needs no inline code.
 [[headers]]
   for = "/*"
   [headers.values]
-    Content-Security-Policy = "default-src 'self'; connect-src 'self' https://yamesi-api-demo.onrender.com; img-src 'self' blob: https://yamesi-api-demo.onrender.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'sha256-BkKP2XO6WOEc3kXOiLr2ZoY83hamalKjPY9xBcbXVuw='; style-src 'self' 'sha256-8yreEHY+Xg9JoKqfg+6OwIKjoM+M9u5aNudQuWvORK0='; connect-src 'self' https://yamesi-api-demo.onrender.com; img-src 'self' blob: https://yamesi-api-demo.onrender.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
     Strict-Transport-Security = "max-age=31536000"
     X-Content-Type-Options = "nosniff"
     X-Frame-Options = "DENY"

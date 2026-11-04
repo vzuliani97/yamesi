@@ -16,7 +16,7 @@ Browser ──HTTPS──> Netlify (frontend/, static build, CDN, security heade
 
 | Part | Where | Notes |
 |---|---|---|
-| Frontend | Netlify, site `yamesi-core-demo` | Built from `frontend/` by `netlify.toml`; calls the API at `VITE_API_BASE_URL` |
+| Frontend | Netlify, site `yamesi` (https://yamesi.netlify.app) | Built from `frontend/` by `netlify.toml`; calls the API at `VITE_API_BASE_URL` |
 | API | Render, web service `yamesi-api-demo` | The existing production image; listens on Render's `PORT`; health check `/health` |
 | Database | Neon, its own project and a database named for the demo | Direct (non-pooled) connection string: migrations take a session advisory lock |
 | Files (photos, receipts, invoice PDFs) | The same Neon database, table `stored_files` | `STORAGE_DRIVER=postgres`: the free plan has no S3-compatible store without a card. Links are HMAC-signed and expire after 300 s, like S3 presigned URLs. Local and AWS keep S3 |
@@ -76,7 +76,7 @@ checks and metadata stripping, the 2 MB limit, idempotent invoices, and helmet's
 
 Secrets: `DATABASE_URL`, `JWT_SECRET` and `DEMO_PASSWORD`. Generate the JWT secret with `openssl rand -hex 32`; the demo password is shown to visitors and is used nowhere else.
 
-**Netlify (`yamesi-core-demo`):** `VITE_DEMO_PASSWORD` (the same public demo password). `VITE_PUBLIC_DEMO` and
+**Netlify (`yamesi`):** `VITE_DEMO_PASSWORD` (the same public demo password). `VITE_PUBLIC_DEMO` and
 `VITE_API_BASE_URL` are in `netlify.toml`.
 
 ## Deploy, roll back, remove
