@@ -6,7 +6,7 @@ COPY tsconfig.json vite.config.ts index.html ./
 COPY src ./src
 RUN npm run build
 
-FROM nginxinc/nginx-unprivileged:1.30.6-alpine
+FROM nginxinc/nginx-unprivileged:1.31.7-alpine
 # Apply Alpine security fixes published after the base image was built, then drop back to the nginx user.
 USER root
 RUN apk upgrade --no-cache
