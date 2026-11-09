@@ -287,3 +287,7 @@ Source code: MIT.
 Catalog photographs, product names, references and prices in `backend/demo-assets/` and in the screenshots: © Inversiones Zuliani S.A.S. (Joyería Yamesi), used with permission and not covered by the MIT License. They are a snapshot of the store's public catalog taken on 2026-11-01; prices and availability do not represent the current inventory. Every published image is stripped of metadata, and CI fails if one carries GPS, camera or capture data (`scripts/image-metadata.mjs`).
 
 Independent portfolio reconstruction based on engineering patterns from professional work. It contains no employer code or confidential information; customers, costs and gold lots are synthetic.
+
+## Portfolio
+
+One of four connected projects at [vzuliani97.github.io](https://vzuliani97.github.io). The others: [NekoBet](https://github.com/vzuliani97/nekobet) (transactions and real time, online at [nekobet.netlify.app](https://nekobet.netlify.app)), [OpsCircuit](https://github.com/vzuliani97/opscircuit) (delivery and operations of NekoBet), [Applied Cyber Security](https://github.com/vzuliani97/applied-cybersecurity) (security assessment of NekoBet, Yamesi and OpsCircuit). Case study: https://vzuliani97.github.io/work/yamesi/
