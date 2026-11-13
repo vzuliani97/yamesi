@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { AppError } from '../common/app-error';
 import { APP_CONFIG, AppConfig } from '../config';
 import { DatabaseService } from '../database/database.service';
+import { accountId, SecurityEvents } from '../security/security-events';
 import { AuthUser, JwtPayload, Role } from './auth.types';
 import { LoginAttempts } from './login-attempts';
 
@@ -26,12 +27,15 @@ export class AuthService {
     private readonly db: DatabaseService,
     private readonly jwt: JwtService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly security: SecurityEvents,
   ) {}
 
   async login(email: string, password: string, ip: string) {
     const attemptKey = `${ip}|${email.toLowerCase()}`;
+    const account = accountId(email);
     const retryAfterSeconds = this.attempts.lockedFor(attemptKey);
     if (retryAfterSeconds > 0) {
+      this.security.record('auth.login_locked', { ip, account });
       throw new AppError(429, 'TOO_MANY_ATTEMPTS', 'Too many failed logins; try again later', { retryAfterSeconds });
     }
 
@@ -45,9 +49,11 @@ export class AuthService {
     // Same error for unknown email and wrong password: do not reveal which accounts exist.
     if (!user || !passwordMatches) {
       this.attempts.recordFailure(attemptKey);
+      this.security.record('auth.login_failed', { ip, account });
       throw new AppError(401, 'INVALID_CREDENTIALS', 'Invalid email or password');
     }
     this.attempts.reset(attemptKey);
+    this.security.record('auth.login_succeeded', { ip, account, userId: user.id, role: user.role });
 
     const authUser: AuthUser = { id: user.id, email: user.email, name: user.name, role: user.role };
     const payload: JwtPayload = { sub: user.id, email: user.email, name: user.name, role: user.role };

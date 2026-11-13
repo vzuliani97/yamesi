@@ -9,6 +9,7 @@ import { LLM_CLIENT, LlmClient } from '../../src/assistant/llm';
 import { APP_CONFIG, AppConfig } from '../../src/config';
 import { DatabaseService } from '../../src/database/database.service';
 import { runMigrations } from '../../src/database/migrate';
+import { SECURITY_EVENT_SINK } from '../../src/security/security-events';
 import { configureApp } from '../../src/setup';
 import { FILE_STORAGE, InMemoryFileStorage } from '../../src/storage/storage.module';
 
@@ -26,11 +27,14 @@ export interface TestContext {
   http: () => ReturnType<typeof request>;
 }
 
-export async function createTestApp(options: { llm?: LlmClient } = {}): Promise<TestContext> {
+/** `securityLog` collects the security event lines the app writes, instead of stdout. */
+export async function createTestApp(options: { llm?: LlmClient; securityLog?: string[] } = {}): Promise<TestContext> {
   let builder = Test.createTestingModule({ imports: [AppModule] });
   if (options.llm) {
     builder = builder.overrideProvider(LLM_CLIENT).useValue(options.llm);
   }
+  const securityLog = options.securityLog;
+  builder = builder.overrideProvider(SECURITY_EVENT_SINK).useValue(securityLog ? (line: string) => securityLog.push(line) : () => undefined);
   const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>({ logger: false });
   configureApp(app, app.get<AppConfig>(APP_CONFIG));

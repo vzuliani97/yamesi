@@ -10,11 +10,13 @@ import { InvoicesModule } from './invoices/invoices.module';
 import { LotsModule } from './lots/lots.module';
 import { PiecesModule } from './pieces/pieces.module';
 import { ReportsModule } from './reports/reports.module';
+import { SecurityModule } from './security/security-events';
 import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
     CoreModule,
+    SecurityModule,
     StorageModule,
     AuditModule,
     AuthModule,

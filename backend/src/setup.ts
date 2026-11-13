@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import { AllExceptionsFilter } from './common/all-exceptions.filter';
 import { rateLimit } from './common/rate-limit';
 import { AppConfig } from './config';
+import { SecurityEvents } from './security/security-events';
 
 /** HTTP setup shared by main.ts and the e2e tests. */
 export function configureApp(app: NestExpressApplication, config: AppConfig): void {
@@ -15,5 +16,5 @@ export function configureApp(app: NestExpressApplication, config: AppConfig): vo
   app.enableCors({ origin: config.CORS_ORIGIN });
   app.useBodyParser('json', { limit: '20kb' });
   app.setGlobalPrefix('api', { exclude: [{ path: 'health', method: RequestMethod.GET }] });
-  app.useGlobalFilters(new AllExceptionsFilter());
+  app.useGlobalFilters(new AllExceptionsFilter(app.get(SecurityEvents)));
 }

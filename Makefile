@@ -1,4 +1,4 @@
-.PHONY: up up-ai down reset demo logs test test-db test-db-stop
+.PHONY: up up-ai down reset demo logs detect test test-db test-db-stop
 
 ## Creates .env from .env.example with a fresh random value for every "replace-with-..." secret
 .env:
@@ -31,6 +31,10 @@ demo: .env
 
 logs:
 	docker compose logs -f backend
+
+## Runs the detection rules over the API's security events and prints the alerts (docs/SECURITY_DETECTION.md)
+detect:
+	docker compose logs --no-log-prefix backend | docker compose exec -T backend node dist/security/detect-cli.js
 
 # Unit + e2e tests in containers, with a disposable database and object store. The demo stack and its data are left alone.
 test: .env
