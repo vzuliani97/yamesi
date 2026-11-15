@@ -30,7 +30,7 @@ Everything in this repository, end to end:
 - **Colombian invoice:** the PDF layout, CUFE with SHA-384 checked against the DIAN's official example, the QR, the total in words and the lifetime gold warranty.
 - **Frontend (React):** the point of sale with catalog photos, the invoice panel, the inventory portal with photo upload, petty cash with receipt photos, closing, reports and the assistant screen.
 - **AI assistant:** a local model (Ollama) limited to five read-only aggregate tools, with an evaluation of its answers.
-- **Delivery and quality:** Docker Compose for the whole stack, non-root containers, a scripted business day (`make demo`), 64 automated tests and CI with CodeQL, Gitleaks, `npm audit`, a Trivy image scan and an OWASP ZAP scan of the running stack.
+- **Delivery and quality:** Docker Compose for the whole stack, non-root containers, a scripted business day (`make demo`), 74 automated tests and CI with CodeQL, Gitleaks, `npm audit`, a Trivy image scan and an OWASP ZAP scan of the running stack.
 
 ## Processes, step by step
 
